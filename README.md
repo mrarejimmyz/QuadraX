@@ -182,7 +182,7 @@ MIT License - see LICENSE file for details
 
 ## 📧 Contact
 
-For questions or collaboration: [Your Contact Info]
+For questions or collaboration: [ashishregmi2017@gmail.com]
 
 ---
 
