@@ -29,7 +29,7 @@ AI robots don't just play the game — they:
 ## 🧱 Architecture
 
 ```
-Frontend (React + WalletConnect)
+Frontend (Next.js + RainbowKit + Wagmi)
     ↓
 Smart Contracts (Solidity on Hedera)
     ↓
@@ -42,12 +42,12 @@ Hedera Agent Kit (agent messaging)
 
 ### Technology Stack
 
-- **Frontend**: React, WalletConnect, ethers.js
+- **Frontend**: Next.js 14 (App Router), RainbowKit, Wagmi, Viem, TailwindCSS
 - **Smart Contracts**: Solidity, Hardhat
 - **Blockchain**: Hedera EVM (Testnet)
 - **AI Agents**: ASI uAgents, MeTTa reasoning engine
 - **Stablecoin**: PYUSD (PayPal USD)
-- **Deployment**: Vercel/Netlify
+- **Deployment**: Vercel (optimized for Next.js)
 
 ## 📦 Project Structure
 
@@ -56,14 +56,17 @@ QuadraX/
 ├── contracts/              # Solidity smart contracts
 │   ├── TicTacToe.sol      # Core game logic
 │   └── PYUSDStaking.sol   # Betting & payout logic
-├── frontend/              # React application
+├── frontend/              # Next.js application
 │   ├── src/
-│   │   ├── components/    # UI components (Board, Chat, Wallet)
+│   │   ├── app/           # Next.js App Router pages
+│   │   ├── components/    # React components (Board, GameInfo, StakingPanel, AIChat)
 │   │   ├── agents/        # AI agent logic
 │   │   ├── contracts/     # ABIs and contract interfaces
-│   │   └── pages/         # App pages
+│   │   ├── hooks/         # Custom React hooks
+│   │   └── lib/           # Utility functions
+│   ├── public/            # Static assets
 │   └── package.json
-├── scripts/               # Deployment scripts
+├── scripts/               # Hardhat deployment scripts
 ├── test/                  # Contract tests
 ├── README.md
 └── TODO.md               # Development roadmap
@@ -76,6 +79,7 @@ QuadraX/
 - Node.js v18+
 - MetaMask or compatible Web3 wallet
 - PYUSD test tokens (from faucet)
+- WalletConnect Project ID ([Get it here](https://cloud.walletconnect.com))
 
 ### Installation
 
@@ -92,6 +96,19 @@ cd frontend
 npm install
 ```
 
+### Configuration
+
+```bash
+# Root directory - copy .env.example to .env
+cp .env.example .env
+
+# Frontend directory - copy .env.local.example to .env.local
+cd frontend
+cp .env.local.example .env.local
+
+# Edit both .env files with your credentials
+```
+
 ### Local Development
 
 ```bash
@@ -101,10 +118,36 @@ npx hardhat node
 # Terminal 2: Deploy contracts
 npx hardhat run scripts/deploy.js --network localhost
 
-# Terminal 3: Start frontend
+# Terminal 3: Start Next.js frontend
 cd frontend
 npm run dev
 ```
+
+The app will be available at `http://localhost:3000`
+
+### Building for Production
+
+```bash
+cd frontend
+npm run build
+npm start
+```
+
+### Deploy to Vercel
+
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy from frontend directory
+cd frontend
+vercel
+
+# Follow the prompts to deploy
+# Set environment variables in Vercel dashboard
+```
+
+Or connect your GitHub repo to Vercel for automatic deployments.
 
 ## 🎮 How to Play
 
@@ -128,9 +171,9 @@ npm run dev
 ## 🛠️ Development Phases
 
 ### ✅ Phase 1: Core Game (Oct 10–11)
-- Setup Hardhat + React
+- Setup Hardhat + Next.js
 - 4x4 board logic in Solidity
-- Basic UI with move validation
+- Next.js UI with move validation
 - Local 2-player testing
 
 ### ✅ Phase 2: PYUSD Integration (Oct 12–13)
