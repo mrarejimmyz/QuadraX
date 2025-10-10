@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npm install)",
       "Bash(where node)",
-      "Bash(where npm)"
+      "Bash(where npm)",
+      "Bash(node:*)",
+      "Bash(npm:*)"
     ],
     "deny": [],
     "ask": []
