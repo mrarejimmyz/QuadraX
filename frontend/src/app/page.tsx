@@ -1,8 +1,27 @@
 'use client'
 
 import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { useAccount, useChainId } from 'wagmi'
+import { useEffect, useState } from 'react'
+import { WalletConnectSetupNotice } from '@/components/WalletConnectSetupNotice'
 
 export default function Home() {
+  const { address, isConnected } = useAccount()
+  const chainId = useChainId()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    )
+  }
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -15,7 +34,13 @@ export default function Home() {
               </h1>
               <p className="text-white/80 mt-1">Agentic 4x4 Tic-Tac-Toe</p>
             </div>
-            <ConnectButton />
+            <div className="z-50 relative">
+              <ConnectButton />
+              {/* Debug info */}
+              <div className="text-xs text-white/60 mt-1">
+                {isConnected ? `Connected: ${address?.slice(0, 6)}...` : 'Not connected'} | Chain: {chainId}
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -23,6 +48,9 @@ export default function Home() {
       {/* Main Content */}
       <main className="flex-1 container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
+          
+          {/* WalletConnect Setup Notice */}
+          <WalletConnectSetupNotice />
           {/* Hero Section */}
           <div className="glass rounded-3xl p-8 md:p-12 mb-8">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-center">
@@ -67,12 +95,25 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Status */}
+            {/* Status & Wallet Connection */}
             <div className="bg-green-500/20 border border-green-500/40 rounded-xl p-6 text-center">
-              <p className="text-lg font-semibold mb-2">✨ Frontend Ready!</p>
-              <p className="text-white/80 text-sm">
-                Connect your wallet to start playing
+              <p className="text-lg font-semibold mb-2">
+                {isConnected ? '🎮 Ready to Play!' : '✨ Frontend Ready!'}
               </p>
+              <p className="text-white/80 text-sm mb-4">
+                {isConnected 
+                  ? `Connected on chain ${chainId}. Ready for gaming!`
+                  : 'Connect your wallet to start playing'
+                }
+              </p>
+              <div className="flex justify-center mb-4">
+                <ConnectButton />
+              </div>
+              {isConnected && (
+                <div className="text-xs text-white/60">
+                  Wallet: {address?.slice(0, 8)}...{address?.slice(-6)} | Network: {chainId === 296 ? 'Hedera Testnet' : `Chain ${chainId}`}
+                </div>
+              )}
             </div>
           </div>
 

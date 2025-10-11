@@ -1,40 +1,56 @@
 'use client'
 
 import { useState } from 'react'
+import { useWallet } from '@/lib/hooks/useWallet'
+import { useBalances } from '@/lib/hooks/useBalances'
+import { useContract } from '@/lib/hooks/useContract'
 
 interface StakingPanelProps {
-  onStake: (amount: string) => void
-  isStaked?: boolean
-  balance?: string
-  loading?: boolean
+  onStakeComplete?: (amount: string) => void
+  className?: string
 }
 
 export default function StakingPanel({
-  onStake,
-  isStaked = false,
-  balance = '0',
-  loading = false
+  onStakeComplete,
+  className = ''
 }: StakingPanelProps) {
   const [amount, setAmount] = useState('1')
+  const [loading, setLoading] = useState(false)
+  
+  // Use the actual wallet hooks
+  const { isConnected } = useWallet()
+  const { pyusd } = useBalances()
+  const contractHook = useContract()
 
-  const handleStake = () => {
-    if (parseFloat(amount) >= 1) {
-      onStake(amount)
+  const handleStake = async () => {
+    if (parseFloat(amount) >= 1 && isConnected) {
+      setLoading(true)
+      try {
+        // TODO: Implement actual staking logic with contracts
+        console.log('Staking:', amount, 'PYUSD')
+        onStakeComplete?.(amount)
+      } catch (error) {
+        console.error('Staking failed:', error)
+      } finally {
+        setLoading(false)
+      }
     }
   }
 
   return (
-    <div className="glass rounded-xl p-6">
+    <div className={`glass rounded-xl p-6 ${className}`}>
       <h3 className="text-xl font-bold mb-4">Stake PYUSD</h3>
 
       {/* Balance */}
       <div className="mb-4 p-3 bg-white/10 rounded-lg">
         <div className="text-sm text-white/70 mb-1">Your Balance</div>
-        <div className="text-lg font-semibold">{balance} PYUSD</div>
+        <div className="text-lg font-semibold">
+          {pyusd.isLoading ? 'Loading...' : `${pyusd.formatted} PYUSD`}
+        </div>
       </div>
 
       {/* Stake Input */}
-      {!isStaked ? (
+      {isConnected ? (
         <div className="space-y-4">
           <div>
             <label className="text-sm text-white/70 mb-2 block">
@@ -68,10 +84,10 @@ export default function StakingPanel({
         </div>
       ) : (
         <div className="text-center py-4">
-          <div className="text-green-400 text-4xl mb-2">✓</div>
-          <p className="font-semibold">Staked Successfully!</p>
+          <div className="text-blue-400 text-4xl mb-2">🔗</div>
+          <p className="font-semibold">Connect Wallet to Stake</p>
           <p className="text-sm text-white/70 mt-2">
-            Waiting for opponent to stake...
+            Connect your wallet to participate in staking
           </p>
         </div>
       )}

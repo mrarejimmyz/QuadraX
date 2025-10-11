@@ -2,10 +2,9 @@
 
 import { useState } from 'react'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
-import Board from '@/components/Board'
-import GameInfo from '@/components/GameInfo'
-import StakingPanel from '@/components/StakingPanel'
-import AIChat from '@/components/AIChat'
+import { Board, GameInfo } from '@/features/game'
+import StakingPanel from '@/features/staking/StakingPanel'
+import { AIChat } from '@/features/game'
 import Link from 'next/link'
 
 export default function GamePage() {
@@ -128,9 +127,7 @@ export default function GamePage() {
 
             {gameStatus === 'waiting' && (
               <StakingPanel
-                onStake={handleStake}
-                isStaked={isStaked}
-                balance="10.5"
+                onStakeComplete={handleStake}
               />
             )}
 
