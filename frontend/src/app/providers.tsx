@@ -3,9 +3,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider } from 'wagmi'
 import { RainbowKitProvider, getDefaultConfig } from '@rainbow-me/rainbowkit'
-import { mainnet, polygon, optimism, arbitrum, base, zora } from 'wagmi/chains'
+import { mainnet, polygon, optimism, arbitrum, base, zora, sepolia } from 'wagmi/chains'
 import { defineChain } from 'viem'
-import { ReactNode } from 'react'
+import React, { ReactNode } from 'react'
 import '@rainbow-me/rainbowkit/styles.css'
 
 // Define Hedera Testnet
@@ -58,19 +58,27 @@ export const hardhatLocal = defineChain({
 // Configure chains based on environment
 const isDevelopment = process.env.NODE_ENV === 'development'
 
-// Get WalletConnect project ID - Create one at https://cloud.walletconnect.com
+// Get WalletConnect project ID - MUST be real for production
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
 
-if (!projectId) {
-  console.warn('⚠️ Missing WalletConnect Project ID. Get one at: https://cloud.walletconnect.com')
-  console.warn('⚠️ Some wallet features may be limited without a valid project ID')
+// Validate Project ID format
+const isValidProjectId = projectId && projectId.length >= 32 && !projectId.includes('placeholder')
+
+if (!isValidProjectId) {
+  console.error('🚨 INVALID WalletConnect Project ID!')
+  console.error('📋 Steps to fix:')
+  console.error('   1. Go to https://cloud.walletconnect.com')
+  console.error('   2. Create account and new project')
+  console.error('   3. Copy Project ID to .env.local')
+  console.error('   4. Restart dev server')
 }
 
-console.log('RainbowKit initialized with project ID:', projectId ? 'Valid' : 'Missing - using fallback')
+console.log('🔗 WalletConnect Status:', isValidProjectId ? 'Valid Project ID' : 'Invalid/Missing Project ID')
 
-// Configure chains - include popular chains for better wallet support
+// Configure chains - Sepolia as primary testnet with PYUSD support
 const chains = [
-  hederaTestnet,
+  sepolia, // Primary testnet - has official PYUSD contract
+  hederaTestnet, // Secondary option
   ...(isDevelopment ? [hardhatLocal] : []),
   // Include popular chains for better wallet compatibility
   mainnet,
@@ -81,12 +89,11 @@ const chains = [
 
 const config = getDefaultConfig({
   appName: 'QuadraX - Agentic 4x4 Tic-Tac-Toe',
-  projectId: projectId || 'b273b1a60e35e5c464e3c8b7c5a4c4a4',
+  projectId: projectId || 'da5fd500fc534848c0c6112afa93e5d1',
   chains,
-  ssr: true,
+  ssr: false, // Disable SSR to ensure proper browser wallet detection
 })
 
-// Create query client with optimized defaults for Web3
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -103,8 +110,9 @@ export function Providers({ children }: { children: ReactNode }) {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider 
-          initialChain={hederaTestnet}
+          initialChain={sepolia}
           showRecentTransactions={true}
+          modalSize="compact"
         >
           {children}
         </RainbowKitProvider>

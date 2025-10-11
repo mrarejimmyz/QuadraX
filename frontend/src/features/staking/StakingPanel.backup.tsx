@@ -1,6 +1,6 @@
-﻿'use client'
+'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useWallet } from '@/lib/hooks/useWallet'
 import { useBalances } from '@/lib/hooks/useBalances'
 import { useContract } from '@/lib/hooks/useContract'
@@ -29,11 +29,11 @@ export default function StakingPanel({
   }, [])
   
   // Safely extract values without causing hydration issues
-  const walletConnected = mounted ? (walletState?.isConnected ?? false) : false
-  const wrongNetwork = mounted ? (walletState?.isWrongNetwork ?? false) : false
-  const currentChainId = mounted ? (walletState?.chainId ?? 0) : 0
+  const isConnected = mounted ? (walletState?.isConnected ?? false) : false
+  const isWrongNetwork = mounted ? (walletState?.isWrongNetwork ?? false) : false
+  const chainId = mounted ? (walletState?.chainId ?? 0) : 0
   
-  const pyusdBalance = mounted ? (balancesState?.pyusd ?? {
+  const pyusd = mounted ? (balancesState?.pyusd ?? {
     formatted: '0',
     isLoading: false,
     error: null,
@@ -56,20 +56,6 @@ export default function StakingPanel({
     }
   }, [walletState?.switchToSepolia])
   
-  const handleStake = useCallback(async () => {
-    if (parseFloat(amount) >= 1 && walletConnected) {
-      setLoading(true)
-      try {
-        console.log('Staking:', amount, 'PYUSD')
-        onStakeComplete?.(amount)
-      } catch (error) {
-        console.error('Staking failed:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-  }, [amount, walletConnected, onStakeComplete])
-
   // Don't render until mounted to prevent hydration issues
   if (!mounted) {
     return (
@@ -82,27 +68,67 @@ export default function StakingPanel({
       </div>
     )
   }
+  
+  // Early return if there are critical errors
+  if (pyusd?.error) {
+    return (
+      <div className={`glass rounded-xl p-6 ${className}`}>
+        <h3 className="text-xl font-bold mb-4">Stake PYUSD</h3>
+        <div className="text-center py-4 text-red-400">
+          <div className="text-4xl mb-2">⚠️</div>
+          <p className="font-semibold mb-2">Unable to load PYUSD balance</p>
+          <p className="text-sm text-white/70 mb-2">{pyusd.error}</p>
+          {pyusd.error.includes('contract not deployed') ? (
+            <div className="mt-4 p-3 bg-yellow-500/20 rounded-lg">
+              <p className="text-yellow-200 text-sm">
+                🚧 PYUSD staking will be available after contract deployment
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-white/70">Please refresh and try again</p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const handleStake = useCallback(async () => {
+    if (parseFloat(amount) >= 1 && isConnected) {
+      setLoading(true)
+      try {
+        // TODO: Implement actual staking logic with contracts
+        console.log('Staking:', amount, 'PYUSD')
+        onStakeComplete?.(amount)
+      } catch (error) {
+        console.error('Staking failed:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+  }, [amount, isConnected, onStakeComplete])
 
   return (
     <div className={`glass rounded-xl p-6 hover:shadow-2xl transition-all duration-300 ${className}`}>
+      {/* Animated Header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-blue-500 flex items-center justify-center animate-pulse">
-          
+          💰
         </div>
         <div>
           <h3 className="text-xl font-bold">Stake PYUSD</h3>
-          <p className="text-sm text-white/60"> Hackathon: PayPal + Hedera Integration</p>
+          <p className="text-sm text-white/60">🏆 Hackathon: PayPal + Hedera Integration</p>
         </div>
       </div>
 
-      {walletConnected && wrongNetwork && (
+      {/* Network Switch Warning */}
+      {isConnected && isWrongNetwork && (
         <div className="mb-4 p-4 bg-orange-500/20 border border-orange-500/40 rounded-lg">
           <div className="text-center">
-            <div className="text-3xl mb-2"></div>
+            <div className="text-3xl mb-2">🔄</div>
             <p className="font-semibold text-orange-200 mb-2">Switch to Sepolia Network</p>
             <p className="text-sm text-orange-200/80 mb-3">
               PYUSD is available on Sepolia testnet (Chain ID: 11155111). 
-              You're currently on Chain ID: {currentChainId}
+              You're currently on Chain ID: {chainId}
             </p>
             <button
               onClick={switchToSepolia}
@@ -110,26 +136,27 @@ export default function StakingPanel({
                        shadow-lg transform transition-all duration-300 hover:scale-105
                        animate-pulse"
             >
-               Switch to Sepolia Now!
+              🚀 Switch to Sepolia Now!
             </button>
           </div>
         </div>
       )}
 
+      {/* Enhanced Balance Display */}
       <div className="mb-6 p-4 bg-gradient-to-r from-white/10 to-white/5 rounded-xl border border-white/20 hover:border-white/30 transition-all duration-300 hover:scale-[1.02]">
         <div className="flex justify-between items-center">
           <div>
             <div className="text-sm text-white/70 mb-1 flex items-center gap-2">
-              <span></span> Your Balance
+              <span>💰</span> Your Balance
             </div>
             <div className="text-2xl font-bold bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">
-              {pyusdBalance.isLoading ? (
+              {pyusd.isLoading ? (
                 <div className="animate-pulse flex items-center gap-2">
                   <div className="w-4 h-4 bg-white/30 rounded-full animate-bounce"></div>
                   Loading...
                 </div>
               ) : (
-                `${pyusdBalance.formatted} PYUSD`
+                `${pyusd.formatted} PYUSD`
               )}
             </div>
           </div>
@@ -143,7 +170,8 @@ export default function StakingPanel({
         </div>
       </div>
 
-      {walletConnected ? (
+      {/* Stake Input */}
+      {isConnected ? (
         <div className="space-y-4">
           <div>
             <label className="text-sm text-white/70 mb-2 block">
@@ -173,11 +201,11 @@ export default function StakingPanel({
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <div className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></div>
-                 Staking PYUSD...
+                💰 Staking PYUSD...
               </span>
             ) : (
               <span className="flex items-center justify-center gap-2">
-                 Stake & Join Game! 
+                🎮 Stake & Join Game! 🚀
               </span>
             )}
           </button>
@@ -188,7 +216,7 @@ export default function StakingPanel({
         </div>
       ) : (
         <div className="text-center py-4">
-          <div className="text-blue-400 text-4xl mb-2"></div>
+          <div className="text-blue-400 text-4xl mb-2">🔗</div>
           <p className="font-semibold">Connect Wallet to Stake</p>
           <p className="text-sm text-white/70 mt-2">
             Connect your wallet to participate in staking

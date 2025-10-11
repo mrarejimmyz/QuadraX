@@ -21,9 +21,11 @@ export interface WalletState {
 export interface WalletActions {
   connect: () => void;
   disconnect: () => Promise<void>;
+  switchToSepolia: () => Promise<void>;
   switchToHederaTestnet: () => Promise<void>;
 }
 
+const SEPOLIA_CHAIN_ID = 11155111;
 const HEDERA_TESTNET_CHAIN_ID = 296;
 
 export function useWallet(): WalletState & WalletActions {
@@ -36,8 +38,8 @@ export function useWallet(): WalletState & WalletActions {
 
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  // Check if user is on wrong network
-  const isWrongNetwork = isConnected && chainId !== HEDERA_TESTNET_CHAIN_ID;
+  // Check if user is on wrong network (primary is Sepolia for PYUSD)
+  const isWrongNetwork = isConnected && chainId !== SEPOLIA_CHAIN_ID;
 
   // Handle connection
   const handleConnect = useCallback(() => {
@@ -63,7 +65,20 @@ export function useWallet(): WalletState & WalletActions {
     }
   }, [disconnect]);
 
-  // Handle network switching
+  // Handle network switching to Sepolia (primary for PYUSD)
+  const switchToSepolia = useCallback(async () => {
+    try {
+      setConnectionError(null);
+      if (switchChain) {
+        await switchChain({ chainId: SEPOLIA_CHAIN_ID });
+      }
+    } catch (error) {
+      console.error('Network switch error:', error);
+      setConnectionError('Failed to switch to Sepolia');
+    }
+  }, [switchChain]);
+
+  // Handle network switching to Hedera (for AI agents)
   const switchToHederaTestnet = useCallback(async () => {
     try {
       setConnectionError(null);
@@ -96,6 +111,7 @@ export function useWallet(): WalletState & WalletActions {
     // Actions
     connect: handleConnect,
     disconnect: handleDisconnect,
+    switchToSepolia,
     switchToHederaTestnet,
   };
 }

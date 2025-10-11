@@ -10,10 +10,14 @@ export const metadata: Metadata = {
   description: 'Blockchain-powered 4x4 Tic-Tac-Toe with AI agents and PYUSD staking',
   keywords: ['blockchain', 'tictactoe', 'AI', 'PYUSD', 'Hedera', 'Web3', 'ETHOnline'],
   authors: [{ name: 'QuadraX Team' }],
+  metadataBase: new URL('http://localhost:3000'),
   openGraph: {
     title: 'QuadraX - Agentic 4x4 Tic-Tac-Toe',
     description: 'Blockchain-powered 4x4 Tic-Tac-Toe with AI agents and PYUSD staking',
     type: 'website',
+  },
+  other: {
+    charset: 'utf-8',
   },
 }
 

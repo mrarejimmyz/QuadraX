@@ -1,6 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false, // Disable strict mode to prevent double initialization
+  swcMinify: true,
+  // Handle Chrome DevTools requests
+  async rewrites() {
+    return [
+      {
+        source: '/.well-known/appspecific/:path*',
+        destination: '/api/not-found',
+      },
+    ]
+  },
   webpack: (config, { isServer }) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,

@@ -113,26 +113,59 @@ export function useBalances(): BalanceHook {
     refetchPyusd();
   };
 
-  // Format HBAR balance
+  // Debug logging removed to reduce console noise
+
+  // Format HBAR balance with safe error handling
   const hbar: TokenBalance = {
     raw: hbarBalance?.value || BigInt(0),
-    formatted: hbarBalance ? formatUnits(hbarBalance.value, hbarBalance.decimals) : '0',
+    formatted: (() => {
+      try {
+        return hbarBalance && hbarBalance.value !== undefined && hbarBalance.decimals !== undefined
+          ? formatUnits(hbarBalance.value, hbarBalance.decimals)
+          : '0';
+      } catch (error) {
+        console.warn('Error formatting HBAR balance:', error);
+        return '0';
+      }
+    })(),
     decimals: hbarBalance?.decimals || 18,
     symbol: hbarBalance?.symbol || 'HBAR',
     isLoading: hbarLoading,
-    error: hbarError ? hbarError.message : null,
+    error: hbarError ? `HBAR Error: ${hbarError.message}` : null,
   };
 
-  // Format PYUSD balance
+  // Format PYUSD balance with safe error handling
   const pyusd: TokenBalance = {
     raw: pyusdBalanceRaw || BigInt(0),
-    formatted: pyusdBalanceRaw && pyusdDecimals 
-      ? formatUnits(pyusdBalanceRaw, pyusdDecimals)
-      : '0',
+    formatted: (() => {
+      try {
+        // Check if PYUSD contract is properly configured
+        if (CONTRACTS.PYUSD.address === '0x' || CONTRACTS.PYUSD.address === '0x0000000000000000000000000000000000000003') {
+          return 'Contract not deployed';
+        }
+        
+        return pyusdBalanceRaw && 
+               pyusdDecimals !== undefined && 
+               pyusdDecimals !== null &&
+               typeof pyusdDecimals === 'number' &&
+               pyusdDecimals >= 0 && 
+               pyusdDecimals <= 77  // Max safe decimals for formatUnits
+          ? formatUnits(pyusdBalanceRaw, pyusdDecimals)
+          : '0';
+      } catch (error) {
+        console.warn('Error formatting PYUSD balance:', error);
+        return '0';
+      }
+    })(),
     decimals: pyusdDecimals || 6,
     symbol: pyusdSymbol || 'PYUSD',
     isLoading: pyusdBalanceLoading || pyusdDecimalsLoading,
-    error: pyusdBalanceError ? pyusdBalanceError.message : null,
+    error: (() => {
+      if (CONTRACTS.PYUSD.address === '0x' || CONTRACTS.PYUSD.address === '0x0000000000000000000000000000000000000003') {
+        return 'PYUSD contract not deployed on Hedera Testnet';
+      }
+      return pyusdBalanceError ? `PYUSD Error: ${pyusdBalanceError.message}` : null;
+    })(),
   };
 
   return {
