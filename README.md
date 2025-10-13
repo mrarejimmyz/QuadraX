@@ -11,6 +11,7 @@
 [![Hardhat](https://img.shields.io/badge/Hardhat-2.19-yellow)](https://hardhat.org/)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.20-blue)](https://soliditylang.org/)
 [![Built for ETHOnline](https://img.shields.io/badge/ETHOnline-2024-purple)](https://ethglobal.com/events/ethonline2024)
+[![PYUSD](https://img.shields.io/badge/PYUSD-Integration-00457C?logo=paypal&logoColor=white)](https://linktr.ee/pyusd_dev)
 
 [🚀 Live Demo](#) • [📖 Documentation](./docs/) • [🎥 Video Demo](#) • [🐛 Report Bug](https://github.com/mrarejimmyz/QuadraX/issues)
 
@@ -24,8 +25,6 @@ QuadraX revolutionizes classic Tic-Tac-Toe by combining strategic gameplay with 
 
 ### 🎯 Key Features
 
-
-## � Quick Demo
 
 ## 🚀 Quick Demo
 
@@ -394,6 +393,45 @@ Set environment variables in Vercel dashboard:
 - [ ] PYUSD faucet integration
 - [ ] Live demo deployment (Vercel)
 - [ ] Video demo production
+
+## 🤝 Prize Tracks & Integrations
+
+### PayPal USD (PYUSD)
+
+- Escrow, payout, and fee accounting are denominated in PYUSD on Hedera EVM.
+- UX focuses on clear approvals, pot visualization, and instant winner payout.
+- Compliance-friendly stablecoin for consumer payments and micro-stakes.
+- Resources: PYUSD Developer Hub → https://linktr.ee/pyusd_dev
+
+How we map to prize criteria:
+- Functionality: audited staking flow, deterministic payouts, and tests in `test/`.
+- Payments Applicability: real-money staking game loop with refunds on invalid state.
+- Novelty: AI‑negotiated stakes and dynamic odds/side‑pots (roadmap).
+- UX: minimal clicks to lock/release; demo mode for frictionless trial.
+- Open‑source: full repo with contracts, frontend, and E2E tests.
+
+### Hedera Agent Kit (planned)
+
+We will integrate Hedera’s AI Studio/AgentKit to let autonomous agents safely perform on‑chain actions:
+- Agent intents: approve PYUSD, create/join game, stake, claim payout.
+- Guardrails: max stake, network allow‑list, and human‑in‑the‑loop confirmations.
+- Data: agents read game state via JSON‑RPC/mirror queries, reason, and act.
+- Reference: AI Studio on Hedera → https://docs.hedera.com/hedera/open-source-solutions/ai-studio-on-hedera
+
+Implementation sketch:
+- Server adapter exposes minimal actions; agents call signed backend (never hold user keys).
+- On success, UI reflects state; failures are annotated in chat as tool errors.
+
+### ASI Alliance (Fetch.ai + SingularityNET) — planned
+
+Scope for ETHOnline tracks around agent reasoning and orchestration:
+- Register game assistant on Agentverse; expose negotiation and ruleset endpoints.
+- Use ASI:One Chat Protocol for human↔agent interactions where available.
+- Explore MeTTa knowledge graphs for board state reasoning and opening books.
+- Links: https://innovationlab.fetch.ai/resources/docs/intro • https://asi1.ai/
+
+Deliverables alignment (judging readiness):
+- Public repo (this), 2–4 min demo video (roadmap), testnet deployment, and docs.
 
 ### 🔮 Future Enhancements
 
