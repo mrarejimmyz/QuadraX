@@ -27,6 +27,8 @@ QuadraX revolutionizes classic Tic-Tac-Toe by combining strategic gameplay with 
 
 ## � Quick Demo
 
+## 🚀 Quick Demo
+
 ```bash
 # 1. Start Ollama AI (for negotiation)
 ollama serve
