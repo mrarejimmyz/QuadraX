@@ -12,6 +12,7 @@
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.20-blue)](https://soliditylang.org/)
 [![Built for ETHOnline](https://img.shields.io/badge/ETHOnline-2024-purple)](https://ethglobal.com/events/ethonline2024)
 [![PYUSD](https://img.shields.io/badge/PYUSD-Integration-00457C?logo=paypal&logoColor=white)](https://linktr.ee/pyusd_dev)
+[![ASI Alliance](https://img.shields.io/badge/ASI%20Alliance-Ready-6C2EB9)](https://asi1.ai/)
 
 [🚀 Live Demo](#) • [📖 Documentation](./docs/) • [🎥 Video Demo](#) • [🐛 Report Bug](https://github.com/mrarejimmyz/QuadraX/issues)
 
@@ -432,6 +433,17 @@ Scope for ETHOnline tracks around agent reasoning and orchestration:
 
 Deliverables alignment (judging readiness):
 - Public repo (this), 2–4 min demo video (roadmap), testnet deployment, and docs.
+
+## ❓ FAQ
+
+### Do we still need Ollama and CUDA if we integrate ASI Alliance (ASI:One/Agentverse)?
+
+Short answer: No, Ollama/CUDA become optional.
+
+- Managed path: Use ASI:One (Web3-native LLM + Chat Protocol) for AI reasoning and agent chat. No local model or GPU required.
+- Local path: Keep Ollama + CUDA for offline or self-hosted inference. We recommend retaining a fallback provider so the app works without external dependencies.
+- Toggle: We’ll expose `AI_PROVIDER=asi|ollama` in `.env.local` to switch at runtime without code changes.
+- Security: With ASI, agents don’t get user keys; the backend mediates on-chain actions with strict allow-lists and human-in-the-loop confirmations.
 
 ### 🔮 Future Enhancements
 
