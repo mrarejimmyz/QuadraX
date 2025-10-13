@@ -100,9 +100,12 @@ async function main() {
 
   // Check contracts
   log('Checking Smart Contracts...', 'blue');
-  allChecksPass &= checkFile('contracts/TicTacToe.sol', 'TicTacToe.sol');
-  allChecksPass &= checkFile('contracts/PYUSDStaking.sol', 'PYUSDStaking.sol');
+  allChecksPass &= checkFile('contracts/core/TicTacToe.sol', 'TicTacToe.sol');
+  allChecksPass &= checkFile('contracts/core/PYUSDStaking.sol', 'PYUSDStaking.sol');
   allChecksPass &= checkFile('contracts/test/MockERC20.sol', 'MockERC20.sol');
+  allChecksPass &= checkFile('contracts/interfaces/IGame.sol', 'IGame.sol');
+  allChecksPass &= checkFile('contracts/interfaces/IStaking.sol', 'IStaking.sol');
+  allChecksPass &= checkFile('contracts/libraries/GameLogic.sol', 'GameLogic.sol');
   console.log();
 
   // Check tests
@@ -116,10 +119,10 @@ async function main() {
   allChecksPass &= checkFile('frontend/src/app/page.tsx', 'app/page.tsx');
   allChecksPass &= checkFile('frontend/src/app/layout.tsx', 'app/layout.tsx');
   allChecksPass &= checkFile('frontend/src/app/providers.tsx', 'app/providers.tsx');
-  allChecksPass &= checkFile('frontend/src/components/Board.tsx', 'Board.tsx');
-  allChecksPass &= checkFile('frontend/src/components/GameInfo.tsx', 'GameInfo.tsx');
-  allChecksPass &= checkFile('frontend/src/components/StakingPanel.tsx', 'StakingPanel.tsx');
-  allChecksPass &= checkFile('frontend/src/components/AIChat.tsx', 'AIChat.tsx');
+  allChecksPass &= checkFile('frontend/src/features/game/Board.tsx', 'Board.tsx');
+  allChecksPass &= checkFile('frontend/src/features/game/GameInfo.tsx', 'GameInfo.tsx');
+  allChecksPass &= checkFile('frontend/src/features/staking/StakingPanel.tsx', 'StakingPanel.tsx');
+  allChecksPass &= checkFile('frontend/src/features/game/AIChat.tsx', 'AIChat.tsx');
   console.log();
 
   // Check documentation
@@ -128,7 +131,8 @@ async function main() {
   allChecksPass &= checkFile('TODO.md', 'TODO.md');
   allChecksPass &= checkFile('BUILD.md', 'BUILD.md');
   allChecksPass &= checkFile('TESTING.md', 'TESTING.md');
-  allChecksPass &= checkFile('PROJECT_SUMMARY.md', 'PROJECT_SUMMARY.md');
+  allChecksPass &= checkFile('ARCHITECTURE.md', 'ARCHITECTURE.md');
+  allChecksPass &= checkFile('PRODUCTION_READY.md', 'PRODUCTION_READY.md');
   console.log();
 
   // Check if dependencies are installed

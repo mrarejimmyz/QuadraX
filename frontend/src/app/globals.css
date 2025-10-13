@@ -45,7 +45,7 @@ html {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', system-ui, sans-serif;
   color: var(--text-primary);
   background: var(--bg-primary);
   background-image: 
@@ -59,6 +59,18 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+/* Enhanced Emoji Support */
+.emoji {
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'EmojiOne Color', 'Android Emoji', sans-serif;
+  font-variant-emoji: emoji;
+  font-feature-settings: "liga" 1, "kern" 1;
+}
+
+/* Force emoji rendering for specific elements */
+.text-4xl, .text-6xl, .text-2xl {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', system-ui, sans-serif;
 }
 
 @layer utilities {

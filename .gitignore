@@ -66,14 +66,6 @@ frontend/.vite/
 frontend/node_modules/
 frontend/.env.local
 frontend/.env.production.local
-e2e-test.bat
-setup.bat
-start-dev.bat
-test-project.bat
-fix-path.ps1
-node-quickfix.ps1
-set-node-path.ps1
-setup-node-path.bat
-setup-nodejs-path.ps1
-frontend/setup-dev-path.ps1
-frontend/simple-setup.ps1
+
+# Scripts (kept in repo but tracked in scripts/ folder)
+# Keeping these tracked for easy setup
