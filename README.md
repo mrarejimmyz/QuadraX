@@ -24,12 +24,6 @@ QuadraX revolutionizes classic Tic-Tac-Toe by combining strategic gameplay with 
 
 ### 🎯 Key Features
 
-- **🤖 AI Negotiation** - Chat with intelligent agents powered by Ollama to agree on stakes (1-10 PYUSD) or play demo mode for free
-- **🎮 Enhanced Gameplay** - 4x4 board with 4 win conditions: horizontal, vertical, diagonal, and 2×2 squares
-- **� Real Stakes** - Stake PYUSD stablecoins; winner automatically receives the payout (minus 0.25% platform fee)
-- **⛓️ Blockchain-Powered** - Smart contracts on Hedera EVM ensure trustless, transparent gameplay
-- **🎨 Modern UI** - Built with Next.js 14, TailwindCSS, and RainbowKit for seamless Web3 experience
-- **📊 3-Phase Flow** - Negotiation → Staking → Gameplay with visual progress tracking
 
 ## � Quick Demo
 
@@ -131,7 +125,7 @@ graph LR
 └─────────────────────────────────────────────────┘
 ```
 
-## � Project Structure
+## 🗂️ Project Structure
 
 ```
 QuadraX/
@@ -411,7 +405,7 @@ Set environment variables in Vercel dashboard:
 
 > 💡 Want to contribute? See [`CONTRIBUTING.md`](./CONTRIBUTING.md)
 
-## � Documentation
+## 📚 Documentation
 
 | Document | Description |
 |----------|-------------|
