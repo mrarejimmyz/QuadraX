@@ -65,10 +65,10 @@ export default function Home() {
                 <span className="emoji">🚀</span> Complete Demo
               </a>
               <a 
-                href="/ollama" 
+                href="/asi-alliance" 
                 className="btn btn-success flex items-center gap-2"
               >
-                <span className="emoji">🧠</span> Ollama + Llama 3.2 8B
+                <span className="emoji">🧠</span> ASI Alliance + MeTTa Reasoning
               </a>
             </div>
             

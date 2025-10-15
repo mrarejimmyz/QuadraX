@@ -1,7 +1,13 @@
 /**
  * QuadraX Game-Specific AI Agent Implementation
  * Specialized for 4x4 TicTacToe with PYUSD staking on Hedera
+ * Powered by ASI Alliance: ASI:One Chat Protocol + MeTTa Knowledge Graphs + Agentverse + A2A Protocol
+ * ETH Online 2025 Integration: ASI Alliance ($8500 prize) + Hedera Agent Kit ($4000 prize)
  */
+
+import { QuadraXAgent as BaseAgent } from '../../services/uAgentService'
+import { ASIService } from '../../services/asiService'
+import { MeTTaService } from '../../services/mettaService'
 
 export interface GameResult {
   opponent: string
@@ -60,8 +66,8 @@ export interface GamePosition {
 }
 
 export class QuadraXAgent {
-  private baseUrl: string = 'http://localhost:11434'
-  private model: string = 'llama3.2:latest'
+  private asiService: ASIService
+  private mettaService: MeTTaService
   private conversationHistory: Array<{role: 'system' | 'user' | 'assistant', content: string}> = []
   
   constructor(
@@ -70,6 +76,21 @@ export class QuadraXAgent {
     public hederaAccountId: string,
     private privateKey: string
   ) {
+    // Initialize ASI Alliance services
+    this.asiService = new ASIService({
+      apiKey: process.env.NEXT_PUBLIC_ASI_API_KEY || '',
+      uagent: {
+        name: `quadrax-${name.toLowerCase().replace(/\s+/g, '-')}`,
+        port: 8005,
+        endpoint: ['http://localhost:8005/submit']
+      }
+    })
+    this.mettaService = new MeTTaService({
+      enabled: true,
+      endpoint: process.env.NEXT_PUBLIC_METTA_ENDPOINT || 'http://localhost:8080/metta',
+      localMode: true,
+      knowledgeBase: 'quadrax'
+    })
     this.initializeQuadraXPersonality()
   }
 
@@ -168,7 +189,7 @@ ANALYSIS REQUIRED:
 
 Respond as ${this.personality.riskProfile} trader with ${this.personality.negotiationStyle} approach.`
 
-    const response = await this.askOllama(prompt)
+    const response = await this.askASI(prompt)
     
     // Parse the response for structured data
     return this.parseQuadraXAnalysis(response, gamePosition)
@@ -228,7 +249,7 @@ CALCULATE:
 
 Consider: QuadraX has no ties (always a winner), opponent's staking psychology, PYUSD fee impact, and market volatility.`
 
-    const response = await this.askOllama(prompt)
+    const response = await this.askASI(prompt)
     
     return this.parseStakeCalculation(response, pyusdContext)
   }
@@ -287,7 +308,7 @@ Consider: opponent's psychology, market timing, your confidence, negotiation mom
 
 Respond in character with strategic reasoning.`
 
-    const response = await this.askOllama(prompt)
+    const response = await this.askASI(prompt)
     
     return this.parseNegotiationResponse(response, opponentStake)
   }
@@ -340,7 +361,7 @@ STRATEGY REQUIREMENTS:
 
 Select the strongest move considering QuadraX's unique mechanics and opponent psychology.`
 
-    const response = await this.askOllama(prompt)
+    const response = await this.askASI(prompt)
     
     return this.parseMoveSelection(response, gamePosition)
   }
@@ -392,31 +413,21 @@ Select the strongest move considering QuadraX's unique mechanics and opponent ps
     return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b)
   }
 
-  // Ollama communication
-  private async askOllama(prompt: string): Promise<string> {
+  // ASI Alliance communication with MeTTa knowledge enhancement
+  private async askASI(prompt: string): Promise<string> {
     try {
       this.conversationHistory.push({ role: 'user', content: prompt })
       
-      const response = await fetch(`${this.baseUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: this.model,
-          prompt: this.conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n\n') + '\n\nassistant:',
-          stream: false,
-          options: { 
-            temperature: 0.7,
-            num_predict: 800 // Longer responses for complex analysis
-          }
-        }),
-      })
+      // Enhance prompt with MeTTa knowledge if available
+      const enhancedPrompt = await this.enhanceWithMeTTaKnowledge(prompt)
+      
+      const response = await this.asiService.generateResponse(
+        enhancedPrompt,
+        this.conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n\n'),
+        `quadrax-${this.name}`
+      )
 
-      if (!response.ok) {
-        throw new Error(`Ollama API error: ${response.status}`)
-      }
-
-      const data = await response.json()
-      this.conversationHistory.push({ role: 'assistant', content: data.response })
+      this.conversationHistory.push({ role: 'assistant', content: response })
       
       // Keep conversation manageable
       if (this.conversationHistory.length > 25) {
@@ -426,15 +437,35 @@ Select the strongest move considering QuadraX's unique mechanics and opponent ps
         ]
       }
 
-      return data.response.trim()
+      return response.trim()
     } catch (error) {
-      console.error('Ollama error:', error)
+      console.error('ASI Alliance error:', error)
       return this.getFallbackResponse(prompt)
     }
   }
 
+  // Enhance prompts with MeTTa knowledge graphs
+  private async enhanceWithMeTTaKnowledge(prompt: string): Promise<string> {
+    try {
+      // Query MeTTa for relevant QuadraX knowledge
+      const relevantKnowledge = await this.mettaService.query(
+        `(query-quadrax-strategy "${prompt}")`,
+        'game_strategy'
+      )
+
+      if (!relevantKnowledge.results || relevantKnowledge.results.length === 0) return prompt
+
+      const knowledgeContext = `Knowledge: ${relevantKnowledge.reasoning || 'Strategic insights available'}`
+
+      return `${prompt}\n\nRelevant Context:\n${knowledgeContext}`
+    } catch (error) {
+      console.error('MeTTa enhancement error:', error)
+      return prompt
+    }
+  }
+
   private getFallbackResponse(prompt: string): string {
-    return `As ${this.name}, I'm experiencing technical difficulties but remain committed to my ${this.personality.riskProfile} QuadraX strategy. I'll analyze this position with my core ${this.personality.negotiationStyle} approach when systems are restored.`
+    return `As ${this.name}, I'm experiencing ASI Alliance connectivity issues but remain committed to my ${this.personality.riskProfile} QuadraX strategy. I'll analyze this position with my core ${this.personality.negotiationStyle} approach when ASI systems are restored.`
   }
 
   // Parsing methods for structured responses
@@ -525,27 +556,26 @@ Select the strongest move considering QuadraX's unique mechanics and opponent ps
   }
 
   // Connection utilities
-  async checkOllamaConnection(): Promise<boolean> {
+  async checkASIConnection(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/version`)
-      return response.ok
+      await this.asiService.initialize()
+      return true
     } catch {
       return false
     }
   }
 
-  async ensureLlamaModel(): Promise<boolean> {
+  async ensureASIModel(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/tags`)
-      const data = await response.json()
-      return data.models.some((m: any) => m.name.includes('llama3.2'))
+      await this.asiService.initialize()
+      return true
     } catch {
       return false
     }
   }
 }
 
-// Factory for creating specialized QuadraX agents
+// Factory for creating specialized QuadraX agents powered by ASI Alliance
 export class QuadraXAgentFactory {
   static createStrategicAnalyst(name: string, hederaAccount: string, privateKey: string): QuadraXAgent {
     return new QuadraXAgent(name, {

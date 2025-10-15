@@ -69,3 +69,5 @@ frontend/.env.production.local
 
 # Scripts (kept in repo but tracked in scripts/ folder)
 # Keeping these tracked for easy setup
+docs/GIT_AUTHENTICATION_SETUP.md
+README_OLD.md

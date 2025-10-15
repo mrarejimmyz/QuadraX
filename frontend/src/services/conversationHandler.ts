@@ -1,8 +1,8 @@
 // Conversation Handler Service
-// Handles different types of AI conversations with context-aware routing
+// Handles different types of AI conversations with context-aware routing using ASI Alliance
 
 import { QuadraXAgent, GamePosition as AgentGamePosition, PlayerProfile, PYUSDStakeContext as AgentPYUSDStakeContext } from '../lib/agents/quadraXAgent'
-import { ollamaService, OllamaResponse } from './ollamaService'
+import { aiProvider } from './aiProvider'
 
 export interface ConversationContext {
   gamePosition?: {
@@ -117,7 +117,7 @@ export class ConversationHandler {
 • 4x4 QuadraX tactics (placement + movement)
 
 💰 **Quick Info**: Standard stake is 10 PYUSD (negotiable 1-10 range)
-🧠 **Powered by**: Llama 3.2 8B via Ollama + CUDA acceleration
+🧠 **Powered by**: ASI Alliance with MeTTa reasoning and Agentverse integration
 
 What would you like to know about QuadraX strategy?`,
         agentName: agent.name,
@@ -128,7 +128,7 @@ What would you like to know about QuadraX strategy?`,
     return {
       text: `👋 Hello! Welcome to QuadraX AI system.
 🔄 Loading AI agents... Please wait a moment.
-🚀 Ensure Ollama is running: \`ollama serve\``,
+🚀 ASI Alliance integration initializing...`,
       type: 'greeting'
     }
   }
@@ -305,8 +305,8 @@ ${analysisResult.recommendedMove ? `**💡 Suggested Move**: Position ${analysis
       // Build context for AI
       const contextString = this.buildContextString(context)
       
-      // Generate AI response using Ollama
-      const aiResponse = await ollamaService.generateResponse(input, contextString)
+      // Generate AI response using ASI Alliance
+      const aiResponse = await aiProvider.generateResponse(input, contextString)
       
       if (aiResponse?.response) {
         return {
@@ -314,7 +314,7 @@ ${analysisResult.recommendedMove ? `**💡 Suggested Move**: Position ${analysis
 
 ${aiResponse.response}
 
-💡 *This response was generated using Llama 3.2 8B with GPU acceleration*`,
+💡 *This response was generated using ASI Alliance with MeTTa reasoning*`,
           agentName: agent.name,
           type: 'ai-generated'
         }
@@ -373,7 +373,7 @@ Game Rules:
 • "Explain the rules" - Game overview
 • "What do you think?" - General AI advice
 
-🚀 Real AI responses available when Ollama is running with CUDA acceleration!`,
+🚀 Real AI responses available through ASI Alliance integration!`,
       type: 'fallback'
     }
   }

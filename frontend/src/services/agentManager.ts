@@ -1,8 +1,8 @@
 // AI Agent Management Service
-// Handles QuadraX agent lifecycle, initialization, and coordination
+// Handles QuadraX agent lifecycle, initialization, and coordination with ASI Alliance
 
 import { QuadraXAgent, QuadraXAgentFactory } from '../lib/agents/quadraXAgent'
-import { ollamaService } from './ollamaService'
+import { aiProvider } from './aiProvider'
 
 export interface AgentStatus {
   agent: QuadraXAgent
@@ -35,15 +35,15 @@ export class AgentManager {
   }
 
   /**
-   * Initialize default set of QuadraX agents
+   * Initialize default set of QuadraX agents with ASI Alliance
    */
   async initializeAgents(): Promise<QuadraXAgent[]> {
     try {
-      // First ensure Ollama is ready
-      const ollamaReady = await ollamaService.checkConnection()
-      if (!ollamaReady) {
-        console.warn('Ollama not ready, attempting to ensure model availability...')
-        await ollamaService.ensureModel()
+      // First ensure ASI Alliance is ready
+      const asiReady = await aiProvider.checkConnection()
+      if (!asiReady) {
+        console.warn('ASI Alliance not ready, attempting to initialize...')
+        await aiProvider.initialize()
       }
 
       // Create diverse agent portfolio
@@ -120,9 +120,9 @@ export class AgentManager {
    */
   private async testAgentConnection(agent: QuadraXAgent): Promise<boolean> {
     try {
-      // Test basic Ollama connection first
-      const ollamaConnected = await agent.checkOllamaConnection()
-      if (!ollamaConnected) return false
+      // Test basic ASI Alliance connection first
+      const asiConnected = await agent.checkASIConnection()
+      if (!asiConnected) return false
 
       // Test agent-specific response capability  
       const testResponse = await Promise.race([
@@ -144,13 +144,39 @@ export class AgentManager {
    */
   private async performAgentHealthCheck(agent: QuadraXAgent): Promise<boolean> {
     try {
-      // Simple test prompt to verify functionality
-      const testPrompt = "Respond with 'OK' if you're ready for QuadraX analysis."
+      // Test agent analysis capability
+      const testPosition = {
+        board: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // Empty 4x4 board
+        phase: 'placement' as const,
+        player1Pieces: 0,
+        player2Pieces: 0,
+        currentPlayer: 1 as const,
+        possibleMoves: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        threatLevel: 'low' as const
+      }
       
-      // Test basic response capability using checkOllamaConnection as a proxy
-      const connected = await agent.checkOllamaConnection()
+      const testOpponent = {
+        address: 'test-opponent',
+        gamesPlayed: 10,
+        winRate: 0.5,
+        averageStake: 5,
+        preferredStrategy: 'defensive' as const,
+        stakingPattern: 'moderate' as const,
+        gameHistory: []
+      }
+      
+      const testContext = {
+        minStake: 1,
+        platformFee: 0.0025,
+        gasEstimate: 0.1,
+        playerBalance: 100,
+        opponentBalance: 100,
+        marketConditions: 'stable' as const
+      }
+      
+      const response = await agent.analyzeQuadraXPosition(testPosition, testOpponent, testContext)
 
-      return connected
+      return response !== null && response !== undefined
     } catch (error) {
       return false
     }
