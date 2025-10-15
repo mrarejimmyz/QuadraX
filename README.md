@@ -261,7 +261,7 @@ Want to make QuadraX even better? Here are ways to contribute:
 
 **Created by**: Ashish Regmi ([@mrarejimmyz](https://github.com/mrarejimmyz))  
 **License**: MIT License - see [LICENSE](./LICENSE)  
-**Award**: ETHOnline 2024 Multi-Track Winner 🏆
+
 
 **Powered by**: PYUSD • AI Agents • Hedera Blockchain • Smart Contracts
 
