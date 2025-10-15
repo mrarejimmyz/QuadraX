@@ -1,0 +1,60 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Build project
+      run: |
+        cd frontend
+        npm run build
+
+    - name: Install Vercel CLI
+      run: npm install -g vercel
+
+    - name: Deploy to Vercel (Preview)
+      if: github.event_name == 'pull_request'
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      run: |
+        cd frontend
+        npx vercel --token $VERCEL_TOKEN --yes
+
+    - name: Deploy to Vercel (Production)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      run: |
+        cd frontend
+        npx vercel --prod --token $VERCEL_TOKEN --yes
+
+    - name: Update Alias to quadra-x.vercel.app
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      run: |
+        cd frontend
+        DEPLOYMENT_URL=$(npx vercel ls --token $VERCEL_TOKEN | grep "frontend.*mrarejimmyzs-projects" | head -1 | awk '{print $2}')
+        npx vercel alias set $DEPLOYMENT_URL quadra-x.vercel.app --token $VERCEL_TOKEN
