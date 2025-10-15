@@ -195,10 +195,12 @@ export class ASIService extends EventEmitter {
       const enhancedContext = this.buildKnowledgeContext(context, intent, mettaResults);
 
       // Use ASI Alliance native intelligence - NO external APIs needed!
-      let assistantResponse: string;
-      
-      // ASI Alliance native intelligence - no external APIs needed!
-      assistantResponse = await this.generateASIDistributedResponse(prompt, enhancedContext, intent, mettaResults);
+      const assistantResponse: string = await this.generateASIDistributedResponse(
+        prompt,
+        enhancedContext,
+        intent,
+        mettaResults
+      );
 
       // Store in session with Chat Protocol format
       const responseMessage = this.createChatMessage([{
