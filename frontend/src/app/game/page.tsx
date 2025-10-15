@@ -33,10 +33,12 @@ export default function GamePage() {
   const [gamePhase, setGamePhase] = useState<'negotiation' | 'staking' | 'gameplay' | 'finished'>('negotiation')
   const [isDemoMode, setIsDemoMode] = useState(false) // Free play without stakes
   
-  // Game state
+  // Strategic 4x4 QuadraX Game State
   const [board, setBoard] = useState<number[]>(Array(16).fill(0))
   const [currentPlayer, setCurrentPlayer] = useState<number>(1)
   const [gameId] = useState<number>(Math.floor(Math.random() * 1000000))
+  const [selectedCell, setSelectedCell] = useState<number | null>(null)
+  const [placementPhase, setPlacementPhase] = useState(true)
   
   // Staking state
   const [negotiatedStake, setNegotiatedStake] = useState<number | null>(null)
@@ -98,25 +100,91 @@ export default function GamePage() {
     setGamePhase('gameplay')
   }
   
-  // === PHASE 3: GAMEPLAY HANDLERS ===
+  // === STRATEGIC 4x4 QUADRAX GAMEPLAY ===
   const handleCellClick = (index: number) => {
-    if (gamePhase !== 'gameplay') return
+    if (gamePhase !== 'gameplay' || currentPlayer !== 1) return
 
-    const newBoard = [...board]
-    newBoard[index] = currentPlayer
-    setBoard(newBoard)
+    const player1Pieces = board.filter(cell => cell === 1).length
+    const player2Pieces = board.filter(cell => cell === 2).length
 
-    // Check for winner
-    if (checkWinner(newBoard, currentPlayer)) {
-      setGamePhase('finished')
-      const winnerName = currentPlayer === 1 ? 'X' : 'O'
-      const payout = isDemoMode ? 0 : parseFloat(pot) * 0.9975 // 0.25% fee
-      alert(`🎉 Player ${winnerName} wins!${!isDemoMode ? `\n💰 Payout: ${payout.toFixed(4)} PYUSD` : ''}`)
-      return
+    // PLACEMENT PHASE: Each player places 4 pieces
+    if (placementPhase) {
+      if (board[index] !== 0) return // Cell must be empty
+      if (player1Pieces >= 4) return // Player already has 4 pieces
+
+      const newBoard = [...board]
+      newBoard[index] = 1 // Player 1 places X
+      setBoard(newBoard)
+
+      // Check for winner after placement (only if both players have placed all pieces)
+      const newPlayer1Count = newBoard.filter(cell => cell === 1).length
+      const newPlayer2Count = newBoard.filter(cell => cell === 2).length
+      
+      if (newPlayer1Count === 4 && newPlayer2Count === 4 && checkWinner(newBoard, 1)) {
+        setGamePhase('finished')
+        // Delay alert to allow board to visually update
+        setTimeout(() => {
+          alert(`🎉 You win during placement!${!isDemoMode ? `\n💰 Payout: ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD` : ''}`)
+        }, 100)
+        return
+      }
+
+      // Check if placement phase is complete
+      if (newPlayer1Count === 4 && newPlayer2Count === 4) {
+        setPlacementPhase(false)
+      }
+
+      // Switch to AI turn
+      setCurrentPlayer(2)
+
+      // Trigger AI placement after delay
+      setTimeout(() => {
+        makeAIPlacement(newBoard)
+      }, 800)
+
+    } else {
+      // MOVEMENT PHASE: Select and move existing pieces
+      if (selectedCell === null) {
+        // First click: select a piece to move
+        if (board[index] === 1) { // Only select player's own pieces
+          setSelectedCell(index)
+        }
+      } else {
+        // Second click: move the selected piece
+        if (index === selectedCell) {
+          // Clicking same cell deselects
+          setSelectedCell(null)
+          return
+        }
+
+        // Move the selected piece
+        if (board[index] === 0) { // Can only move to empty cells
+          const newBoard = [...board]
+          newBoard[selectedCell] = 0 // Remove from old position
+          newBoard[index] = 1 // Place in new position
+          setBoard(newBoard)
+          setSelectedCell(null)
+
+          // Check for winner after movement
+          if (checkWinner(newBoard, 1)) {
+            setGamePhase('finished')
+            // Delay alert to allow board to visually update
+            setTimeout(() => {
+              alert(`🎉 You win!${!isDemoMode ? `\n💰 Payout: ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD` : ''}`)
+            }, 100)
+            return
+          }
+
+          // Switch to AI turn
+          setCurrentPlayer(2)
+
+          // Trigger AI movement after delay
+          setTimeout(() => {
+            makeAIMovement(newBoard)
+          }, 800)
+        }
+      }
     }
-
-    // Switch player
-    setCurrentPlayer(currentPlayer === 1 ? 2 : 1)
   }
 
   const checkWinner = (board: number[], player: number): boolean => {
@@ -183,6 +251,200 @@ export default function GamePage() {
     return false
   }
 
+  // AI Agent-Powered Move Selection
+  const getAIMove = async (board: number[], phase: 'placement' | 'movement', availableMoves: number[]): Promise<number> => {
+    console.log('🤖 AI Move Request:', { board, phase, availableMoves })
+    
+    // Prepare board analysis for AI agents
+    const boardAnalysis = {
+      board: board,
+      phase: phase,
+      playerPieces: board.filter(cell => cell === 1).length,
+      aiPieces: board.filter(cell => cell === 2).length,
+      availableMoves: availableMoves,
+      winningPatterns: getWinningPatterns()
+    }
+
+    try {
+      // Query ASI Alliance agents for strategic analysis
+      const response = await fetch('/api/ai/strategic-move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          boardState: boardAnalysis,
+          requestType: 'ruthless-optimal-move',
+          difficulty: 'maximum'
+        })
+      })
+
+      if (!response.ok) {
+        console.error('❌ AI API Error:', response.status, response.statusText)
+        // Fallback to first available move if API fails
+        return availableMoves[0] || 0
+      }
+
+      const aiDecision = await response.json()
+      console.log('🎯 AI Decision Response:', aiDecision)
+      
+      // Validate the AI's move
+      if (aiDecision.move !== undefined && availableMoves.includes(aiDecision.move)) {
+        console.log('✅ AI Selected Move:', aiDecision.move)
+        return aiDecision.move
+      } else {
+        console.warn('⚠️ AI returned invalid move:', aiDecision.move, 'Available:', availableMoves)
+        return availableMoves[0] || 0
+      }
+    } catch (error) {
+      console.error('💥 AI Request Failed:', error)
+      // Fallback to first available move
+      return availableMoves[0] || 0
+    }
+  }
+
+  const getAIMovement = async (board: number[], aiPieces: number[]): Promise<{from: number, to: number} | null> => {
+    console.log('🔄 AI Movement Request:', { board, aiPieces })
+    
+    // Get all possible moves
+    const possibleMoves = []
+    const emptySpaces = board.map((cell, index) => cell === 0 ? index : null).filter(i => i !== null) as number[]
+    
+    for (const piece of aiPieces) {
+      for (const target of emptySpaces) {
+        possibleMoves.push({ from: piece, to: target })
+      }
+    }
+
+    console.log('🎯 Possible AI Movements:', possibleMoves.length, 'options')
+
+    try {
+      // Query AI agents for best movement
+      const response = await fetch('/api/ai/strategic-move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          boardState: { board, aiPieces, possibleMoves },
+          requestType: 'optimal-movement',
+          difficulty: 'ruthless'
+        })
+      })
+
+      if (!response.ok) {
+        console.error('❌ AI Movement API Error:', response.status)
+        return possibleMoves.length > 0 ? possibleMoves[0] : null
+      }
+
+      const aiDecision = await response.json()
+      console.log('🎯 AI Movement Response:', aiDecision)
+      
+      if (aiDecision.movement) {
+        console.log('✅ AI Selected Movement:', aiDecision.movement)
+        return aiDecision.movement
+      } else {
+        console.warn('⚠️ AI returned no movement, using random')
+        return possibleMoves.length > 0 ? possibleMoves[0] : null
+      }
+    } catch (error) {
+      console.error('💥 AI Movement Request Failed:', error)
+      return possibleMoves.length > 0 ? possibleMoves[0] : null
+    }
+  }
+
+  const makeAIPlacement = async (currentBoard: number[]) => {
+    console.log('🤖 AI Placement Turn Started')
+    const availableMoves = currentBoard.map((cell, index) => cell === 0 ? index : null).filter(i => i !== null) as number[]
+    console.log('📍 Available placement moves:', availableMoves)
+    if (availableMoves.length === 0) return
+
+    const aiMove = await getAIMove(currentBoard, 'placement', availableMoves)
+    console.log('🎯 AI Selected Position:', aiMove)
+
+    const newBoard = [...currentBoard]
+    newBoard[aiMove] = 2 // AI places O
+    setBoard(newBoard)
+
+    // Check for AI winner (only if both players have placed all pieces)
+    const finalPlayer1Count = newBoard.filter(cell => cell === 1).length
+    const finalPlayer2Count = newBoard.filter(cell => cell === 2).length
+    
+    if (finalPlayer1Count === 4 && finalPlayer2Count === 4 && checkWinner(newBoard, 2)) {
+      setGamePhase('finished')
+      // Delay alert to allow board to visually update
+      setTimeout(() => {
+        alert('🤖 AI wins during placement!')
+      }, 100)
+      return
+    }
+
+    // Check if placement phase is complete
+    if (finalPlayer1Count === 4 && finalPlayer2Count === 4) {
+      setPlacementPhase(false)
+    }
+
+    // Switch back to player
+    setCurrentPlayer(1)
+  }
+
+  const makeAIMovement = async (currentBoard: number[]) => {
+    console.log('🚀 AI Movement Turn Started')
+    const aiPieces = currentBoard.map((cell, index) => cell === 2 ? index : null).filter(i => i !== null) as number[]
+    console.log('🔍 AI Pieces on board:', aiPieces)
+    if (aiPieces.length === 0) return
+
+    const aiMovement = await getAIMovement(currentBoard, aiPieces)
+    console.log('➡️ AI Movement Decision:', aiMovement)
+    if (!aiMovement) return
+
+    const newBoard = [...currentBoard]
+    newBoard[aiMovement.from] = 0 // Remove from old position
+    newBoard[aiMovement.to] = 2 // Place in new position
+    setBoard(newBoard)
+
+    // Check for AI winner
+    if (checkWinner(newBoard, 2)) {
+      setGamePhase('finished')
+      // Delay alert to allow board to visually update
+      setTimeout(() => {
+        alert('🤖 AI wins!')
+      }, 100)
+      return
+    }
+
+    // Switch back to player
+    setCurrentPlayer(1)
+  }
+
+  const getWinningPatterns = () => {
+    return [
+      // Horizontal
+      [0,1,2,3], [4,5,6,7], [8,9,10,11], [12,13,14,15],
+      // Vertical  
+      [0,4,8,12], [1,5,9,13], [2,6,10,14], [3,7,11,15],
+      // Diagonal
+      [0,5,10,15], [3,6,9,12],
+      // 2x2 Squares
+      [0,1,4,5], [1,2,5,6], [2,3,6,7], [4,5,8,9], 
+      [5,6,9,10], [6,7,10,11], [8,9,12,13], [9,10,13,14], [10,11,14,15]
+    ]
+  }
+
+  const findWinningMove = (board: number[], player: number): number | null => {
+    const patterns = getWinningPatterns()
+    
+    for (const pattern of patterns) {
+      const cells = pattern.map(i => board[i])
+      const playerCount = cells.filter(cell => cell === player).length
+      const emptyCount = cells.filter(cell => cell === 0).length
+      
+      // If 3 pieces and 1 empty, that's a winning move
+      if (playerCount === 3 && emptyCount === 1) {
+        const emptyIndex = pattern[cells.indexOf(0)]
+        return emptyIndex
+      }
+    }
+    
+    return null
+  }
+
   const handleReset = () => {
     setBoard(Array(16).fill(0))
     setCurrentPlayer(1)
@@ -191,6 +453,8 @@ export default function GamePage() {
     setPot('0')
     setNegotiatedStake(null)
     setIsDemoMode(false)
+    setSelectedCell(null)
+    setPlacementPhase(true)
   }
 
   return (
@@ -319,14 +583,38 @@ export default function GamePage() {
                 onCellClick={handleCellClick}
                 currentPlayer={currentPlayer}
                 disabled={gamePhase !== 'gameplay'}
+                selectedCell={selectedCell}
+                gamePhase={placementPhase ? 'placement' : 'movement'}
+                piecesPlaced={{
+                  player1: board.filter(cell => cell === 1).length,
+                  player2: board.filter(cell => cell === 2).length
+                }}
               />
 
               {/* Phase status message */}
               <div className="mt-4 glass rounded-xl p-4 text-center">
                 {gamePhase === 'negotiation' && (
-                  <p className="text-sm text-white/80">
-                    💬 <strong>Step 1:</strong> Chat with AI to negotiate stakes or try demo mode
-                  </p>
+                  <div className="space-y-3">
+                    <p className="text-sm text-white/80">
+                      💬 <strong>Step 1:</strong> Chat with AI to negotiate stakes or try demo mode
+                    </p>
+                    
+                    {/* Quick Demo Button */}
+                    <div className="pt-2 border-t border-white/10">
+                      <button
+                        onClick={() => handleNegotiationComplete(null, true)}
+                        className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 
+                                   text-white font-bold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl 
+                                   transform hover:scale-105 transition-all duration-200
+                                   border-2 border-yellow-400/20 hover:border-yellow-300/40"
+                      >
+                        🎮 Start Demo Game
+                      </button>
+                      <p className="text-xs text-white/60 mt-2">
+                        Skip negotiation • No stakes • Instant play
+                      </p>
+                    </div>
+                  </div>
                 )}
                 {gamePhase === 'staking' && (
                   <p className="text-sm text-white/80">
@@ -347,8 +635,103 @@ export default function GamePage() {
             </div>
           </div>
 
-          {/* Right Panel - AI Chat (Always Active) */}
-          <div>
+          {/* Right Panel - Game Strategy & AI */}
+          <div className="space-y-6">
+            {/* Strategic Game Guide */}
+            <div className="glass rounded-2xl p-6 border border-white/20">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <span>🎯</span>
+                4x4 QuadraX Rules
+              </h3>
+              
+              <div className="space-y-4 text-sm">
+                {/* Game Phases */}
+                <div>
+                  <h4 className="font-semibold text-cyan-400 mb-2">Game Phases</h4>
+                  <div className="space-y-1 text-white/80">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs">🔹</span>
+                      <span><strong>Placement:</strong> Each player places 4 pieces</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs">🔄</span>
+                      <span><strong>Movement:</strong> Move any piece to any empty cell</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Win Conditions */}
+                <div>
+                  <h4 className="font-semibold text-purple-400 mb-2">Win Conditions</h4>
+                  <div className="space-y-2 text-white/80">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs">→</span>
+                      <span>4 in a row (horizontal/vertical/diagonal)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs">⬛</span>
+                      <span>2x2 square block anywhere on board</span>
+                    </div>
+                    
+                    {/* Mini pattern examples */}
+                    <div className="mt-3 space-y-2">
+                      <div className="text-xs text-white/60">Winning Patterns:</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* 4-in-row example */}
+                        <div className="bg-slate-800/30 rounded p-2">
+                          <div className="text-xs text-cyan-400 mb-1">4-in-Row</div>
+                          <div className="grid grid-cols-4 gap-0.5">
+                            {[1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0].map((cell, i) => (
+                              <div key={i} className={`w-2 h-2 rounded-sm ${
+                                cell === 1 ? 'bg-cyan-400' : 'bg-slate-600/50'
+                              }`}></div>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        {/* 2x2 block example */}
+                        <div className="bg-slate-800/30 rounded p-2">
+                          <div className="text-xs text-purple-400 mb-1">2x2 Block</div>
+                          <div className="grid grid-cols-4 gap-0.5">
+                            {[1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0].map((cell, i) => (
+                              <div key={i} className={`w-2 h-2 rounded-sm ${
+                                cell === 1 ? 'bg-purple-400' : 'bg-slate-600/50'
+                              }`}></div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Current Game Stats */}
+                {gamePhase === 'gameplay' && (
+                  <div>
+                    <h4 className="font-semibold text-yellow-400 mb-2">Game Status</h4>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-slate-800/50 rounded p-2">
+                        <div className="text-cyan-400 font-semibold">Player X</div>
+                        <div className="text-white/80">{board.filter(cell => cell === 1).length}/4 pieces</div>
+                      </div>
+                      <div className="bg-slate-800/50 rounded p-2">
+                        <div className="text-pink-400 font-semibold">AI O</div>
+                        <div className="text-white/80">{board.filter(cell => cell === 2).length}/4 pieces</div>
+                      </div>
+                      <div className="col-span-2 bg-slate-800/50 rounded p-2">
+                        <div className="text-white/90">
+                          Phase: <span className="text-yellow-400 font-semibold">
+                            {placementPhase ? 'Placement' : 'Movement'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* AI Chat */}
             <AIChat 
               aiName="QuadraX AI" 
               enabled={true}

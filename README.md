@@ -23,7 +23,7 @@
 
 ##  **What Makes QuadraX Special?**
 
-QuadraX isn't just another gameit's a **multi-agent blockchain ecosystem** where specialized uAgents communicate via **A2A protocol**, coordinate through **Hedera Agent Kit**, and leverage **ASI Alliance neural networks** to negotiate real PYUSD stakes in real-time.
+QuadraX isn't just another game. It's a **multi-agent blockchain ecosystem** where specialized uAgents communicate via **A2A protocol**, coordinate through **Hedera Agent Kit**, and leverage **ASI Alliance neural networks** to negotiate real PYUSD stakes in real-time.
 
 ** The Magic**: uAgents autonomously communicate using A2A protocol to coordinate game strategy, while ASI Alliance provides neural processing for intelligent negotiationsall orchestrated through Hedera Agent Kit with live blockchain integration.
 

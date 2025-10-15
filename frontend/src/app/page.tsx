@@ -7,8 +7,7 @@ import { WalletConnectSetupNotice } from '@/components/WalletConnectSetupNotice'
 import { WalletConnectProjectIdNotice } from '@/components/WalletConnectProjectIdNotice'
 import { StakingPanel } from '@/features/staking'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import AIChat from '@/features/game/AIChat'
-import { Board } from '@/features/game'
+import { AIChatRefactored as AIChat, Board } from '@/features/game'
 import Link from 'next/link'
 
 export default function Home() {
@@ -81,28 +80,28 @@ export default function Home() {
               </div>
             </div>
 
-            <p className="text-title3 text-secondary max-w-3xl mx-auto mb-8 leading-relaxed">
+            <p className="text-title3 text-secondary max-w-3xl mx-auto mb-12 leading-relaxed">
               Experience the future of strategic gaming with AI-powered assistance, 
               real PYUSD rewards, and revolutionary Agent-to-Agent protocol on Hedera's dual-chain architecture.
             </p>
 
             {/* Feature Highlights */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-              <div className="material-regular p-6 text-center group hover:scale-105 transition-transform duration-300">
-                <span className="text-4xl emoji">🎮</span>
-                <h3 className="text-headline text-primary mt-4 mb-2">Strategic Gaming</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+              <div className="material-regular p-8 text-center group hover:scale-105 transition-transform duration-300">
+                <span className="text-5xl emoji mb-4 block">🎮</span>
+                <h3 className="text-headline text-primary mt-4 mb-3">Strategic Gaming</h3>
                 <p className="text-callout text-secondary">4x4 enhanced Tic-Tac-Toe with real stakes</p>
               </div>
               
-              <div className="material-regular p-6 text-center group hover:scale-105 transition-transform duration-300">
-                <span className="text-4xl emoji">🤖</span>
-                <h3 className="text-headline text-primary mt-4 mb-2">AI Assistance</h3>
+              <div className="material-regular p-8 text-center group hover:scale-105 transition-transform duration-300">
+                <span className="text-5xl emoji mb-4 block">🤖</span>
+                <h3 className="text-headline text-primary mt-4 mb-3">AI Assistance</h3>
                 <p className="text-callout text-secondary">Hedera Agent Kit with A2A protocol</p>
               </div>
               
-              <div className="material-regular p-6 text-center group hover:scale-105 transition-transform duration-300">
-                <span className="text-4xl emoji">💰</span>
-                <h3 className="text-headline text-primary mt-4 mb-2">Real Rewards</h3>
+              <div className="material-regular p-8 text-center group hover:scale-105 transition-transform duration-300">
+                <span className="text-5xl emoji mb-4 block">💰</span>
+                <h3 className="text-headline text-primary mt-4 mb-3">Real Rewards</h3>
                 <p className="text-callout text-secondary">Win actual PYUSD on dual-chain network</p>
               </div>
             </div>
@@ -122,7 +121,7 @@ export default function Home() {
           </div>
 
           {/* Apple-Style Segmented Control */}
-          <div className="max-w-md mx-auto mb-8">
+          <div className="max-w-md mx-auto mb-12">
             <div className="segmented-control">
               <button 
                 onClick={() => setActiveTab('game')}
@@ -167,11 +166,11 @@ export default function Home() {
                     <span className="emoji">⚡</span> Strategic 4x4 Battleground
                   </h3>
                   <div className="flex justify-center">
-                    <div className="card card-compact max-w-md w-full">
-                      <div className="text-center mb-6">
-                        <div className="text-6xl mb-4 emoji">🎮</div>
-                        <h4 className="text-title3 text-primary mb-2">AI-Powered QuadraX</h4>
-                        <p className="text-body text-secondary mb-6">Negotiate stakes with AI • 4×4 strategic gameplay • Real PYUSD rewards</p>
+                    <div className="card max-w-md w-full">
+                      <div className="text-center mb-8">
+                        <div className="text-6xl mb-6 emoji">🎮</div>
+                        <h4 className="text-title3 text-primary mb-3">AI-Powered QuadraX</h4>
+                        <p className="text-body text-secondary mb-8">Negotiate stakes with AI • 4×4 strategic gameplay • Real PYUSD rewards</p>
                         
                         <div className="material-ultrathin p-4 mb-6">
                           <div className="grid grid-cols-2 gap-4">
@@ -188,11 +187,14 @@ export default function Home() {
                       </div>
                       
                       {isConnected ? (
-                        <div className="space-y-3">
-                          <Link href="/game" className="btn btn-primary w-full block text-center">
+                        <div className="space-y-4">
+                          <Link href="/game" className="btn btn-primary w-full block text-center py-4">
                             <span className="emoji">🚀</span> Launch Game - Negotiate Stakes with AI
                           </Link>
-                          <p className="text-caption1 text-tertiary text-center">Chat with AI to negotiate stakes or try demo mode</p>
+                          <Link href="/game?demo=true" className="btn btn-tinted w-full block text-center py-4">
+                            <span className="emoji">🎮</span> Try Demo - Play Free Practice Game
+                          </Link>
+                          <p className="text-caption1 text-tertiary text-center mt-3">Play with real stakes or practice in demo mode</p>
                         </div>
                       ) : (
                         <div className="space-y-4 text-center">
