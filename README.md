@@ -112,7 +112,7 @@ Form a **2x2 square** anywhere on the board with your pieces
 | 🎮 **Game Mode** | 💰 **Stakes** | 🏆 **Rewards** |
 |:---------------:|:------------:|:--------------:|
 | 🚀 **Demo Mode** | No risk | Practice & fun |
-| 💎 **Real Stakes** | 1-100 PYUSD | Winner takes all |
+| 💎 **Real Stakes** | 1-10 PYUSD | Winner takes all |
 | 🎯 **Tournament** | Variable pools | Massive prizes |
 
 **💡 How It Works**: Stakes are held in smart contract escrow. Winner gets 99.75% of the total pool (0.25% platform fee).
@@ -261,7 +261,7 @@ Want to make QuadraX even better? Here are ways to contribute:
 
 **Created by**: Ashish Regmi ([@mrarejimmyz](https://github.com/mrarejimmyz))  
 **License**: MIT License - see [LICENSE](./LICENSE)  
-**Award**: ETHOnline 2024 Multi-Track Winner 🏆
+
 
 **Powered by**: PYUSD • AI Agents • Hedera Blockchain • Smart Contracts
 
