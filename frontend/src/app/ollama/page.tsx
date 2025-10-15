@@ -259,7 +259,7 @@ export default function OllamaDemoPage() {
         <div className="container mx-auto px-4 py-6">
           <div className="text-center">
             <p className="text-sm text-white/60 mb-2">
-              🚀 Built for ETHOnline 2024 | PYUSD × ASI × Hedera × Ollama
+              🚀 Built for ETHOnline 2025 | PYUSD × ASI × Hedera × Ollama
             </p>
             <p className="text-xs text-white/40">
               Powered by Llama 3.2 8B - The perfect AI model for strategic gaming and financial analysis

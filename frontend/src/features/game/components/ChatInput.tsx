@@ -29,7 +29,7 @@ export function ChatInput({ input, setInput, isProcessing, enabled, onSendMessag
   }
 
   return (
-    <div className="p-4 border-t border-gray-700/50 bg-gradient-to-r from-gray-900/90 to-slate-900/90 backdrop-blur-sm">
+    <div className="p-4 border-t border-white/10 bg-black/30 backdrop-blur-xl">
       <div className="flex gap-3">
         <div className="flex-1 relative">
           <input
@@ -37,21 +37,19 @@ export function ChatInput({ input, setInput, isProcessing, enabled, onSendMessag
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder={enabled ? "💬 Ask AI about strategy, stakes, or moves..." : "🔒 Start a game to enable chat"}
+            placeholder={enabled ? "Ask AI about strategy or moves..." : "Start a game to enable chat"}
             disabled={!enabled || isProcessing}
-            className="w-full border border-gray-600/50 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm shadow-lg"
-            style={{ 
-              backgroundColor: 'rgba(31, 41, 55, 0.95)',
-              color: 'white',
-              caretColor: 'white'
-            }}
+            className="w-full glass-thin border border-white/20 rounded-xl px-4 py-3 text-white 
+                     placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 
+                     focus:border-cyan-400/50 transition-all duration-200 
+                     disabled:opacity-50 disabled:cursor-not-allowed"
           />
           {isProcessing && (
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+            <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
               <div className="flex gap-1">
-                <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce"></div>
-                <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-1 h-1 bg-cyan-400 rounded-full animate-bounce"></div>
+                <div className="w-1 h-1 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-1 h-1 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
               </div>
             </div>
           )}
@@ -59,14 +57,25 @@ export function ChatInput({ input, setInput, isProcessing, enabled, onSendMessag
         <button
           onClick={onSendMessage}
           disabled={!enabled || !input.trim() || isProcessing}
-          className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-lg hover:shadow-blue-500/25 disabled:shadow-none"
+          className="glass-thin border border-white/20 px-4 py-3 rounded-xl font-medium 
+                   transition-all duration-200 focus:outline-none hover:scale-105 active:scale-95
+                   disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                   text-white hover:bg-white/10"
         >
-          {isProcessing ? '⏳' : '🚀'}
+          {isProcessing ? (
+            <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+          )}
         </button>
       </div>
 
-      {/* Quick Action Buttons */}
-      <div className="flex gap-2 mt-3">
+      {/* Improved Quick Actions */}
+      <div className="flex gap-2 mt-3 overflow-x-auto">
         {(['analyze', 'stake', 'move', 'help'] as const).map(action => (
           <button
             key={action}
@@ -75,10 +84,14 @@ export function ChatInput({ input, setInput, isProcessing, enabled, onSendMessag
               setTimeout(onSendMessage, 10)
             }}
             disabled={!enabled || isProcessing}
-            className="flex items-center gap-2 text-sm px-3 py-2 bg-gray-800/60 hover:bg-gray-700/80 text-gray-300 hover:text-white rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-600/30 hover:border-gray-500/50 backdrop-blur-sm"
+            className="glass-ultra-thin border border-white/10 flex items-center gap-1.5 
+                     text-xs px-3 py-1.5 rounded-lg transition-all duration-200 
+                     disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                     hover:scale-105 hover:bg-white/5 active:scale-95 text-white/80
+                     hover:text-white whitespace-nowrap"
           >
-            <span>{getActionIcon(action)}</span>
-            <span className="capitalize">{action}</span>
+            <span className="text-sm">{getActionIcon(action)}</span>
+            <span className="capitalize font-medium">{action}</span>
           </button>
         ))}
       </div>

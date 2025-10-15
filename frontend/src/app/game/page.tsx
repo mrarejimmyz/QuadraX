@@ -78,12 +78,15 @@ export default function GamePage() {
 
   // === PHASE 1: NEGOTIATION HANDLERS ===
   const handleNegotiationComplete = (stake: number | null, demo: boolean) => {
+    console.log('handleNegotiationComplete called:', { stake, demo })
     if (demo) {
+      console.log('Setting demo mode and transitioning to gameplay...')
       setIsDemoMode(true)
       setNegotiatedStake(0)
       setPot('0')
       // Skip staking, go directly to gameplay
       setGamePhase('gameplay')
+      console.log('Demo mode activated, gamePhase set to gameplay')
     } else if (stake && stake >= 1 && stake <= 10) {
       setNegotiatedStake(stake)
       setPot((stake * 2).toString())
@@ -476,51 +479,111 @@ export default function GamePage() {
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
           
-          {/* === PHASE INDICATOR === */}
-          <div className="lg:col-span-3 mb-4">
-            <div className="glass rounded-xl p-4">
-              <div className="flex items-center justify-center gap-4">
+          {/* === Apple-style PHASE INDICATOR === */}
+          <div className="lg:col-span-3 mb-8">
+            <div className="glass-thick rounded-3xl p-6 relative overflow-hidden">
+              {/* Subtle top highlight */}
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+              
+              <div className="flex items-center justify-center gap-6 relative z-10">
                 {/* Phase 1: Negotiation */}
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                <div className={`relative flex items-center gap-3 px-6 py-3 rounded-2xl transition-all duration-500 ${
                   gamePhase === 'negotiation' 
-                    ? 'bg-blue-600 text-white shadow-lg' 
+                    ? 'glass-regular border-2 border-blue-400/50 shadow-lg scale-105' 
                     : gamePhase === 'staking' || gamePhase === 'gameplay' || gamePhase === 'finished'
-                    ? 'bg-green-600/30 text-green-200'
-                    : 'bg-white/10 text-white/40'
+                    ? 'glass-ultra-thin border border-green-400/30'
+                    : 'glass-ultra-thin border border-white/10'
                 }`}>
-                  <span className="text-xl">{gamePhase === 'negotiation' ? '🤖' : '✅'}</span>
-                  <span className="font-semibold">1. Negotiation</span>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                    gamePhase === 'negotiation'
+                      ? 'bg-gradient-to-br from-blue-400 to-indigo-500 shadow-lg animate-pulse'
+                      : gamePhase === 'staking' || gamePhase === 'gameplay' || gamePhase === 'finished'
+                      ? 'bg-gradient-to-br from-green-400 to-emerald-500'
+                      : 'bg-white/10'
+                  }`}>
+                    <span className="text-lg">{gamePhase === 'negotiation' ? '🤖' : '✅'}</span>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-sm">Negotiation</div>
+                    <div className="text-xs text-white/60">AI Chat Setup</div>
+                  </div>
                 </div>
 
-                <div className="text-white/40">→</div>
+                {/* Connection line */}
+                <div className="flex-1 h-px bg-gradient-to-r from-white/20 via-white/40 to-white/20 relative">
+                  <div className={`absolute top-1/2 transform -translate-y-1/2 w-2 h-2 rounded-full transition-all ${
+                    gamePhase === 'staking' || gamePhase === 'gameplay' || gamePhase === 'finished'
+                      ? 'bg-green-400 shadow-lg left-full animate-pulse'
+                      : 'bg-white/40 left-0'
+                  }`}></div>
+                </div>
 
                 {/* Phase 2: Staking */}
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                <div className={`relative flex items-center gap-3 px-6 py-3 rounded-2xl transition-all duration-500 ${
                   gamePhase === 'staking' 
-                    ? 'bg-purple-600 text-white shadow-lg' 
+                    ? 'glass-regular border-2 border-purple-400/50 shadow-lg scale-105' 
                     : gamePhase === 'gameplay' || gamePhase === 'finished'
-                    ? 'bg-green-600/30 text-green-200'
-                    : 'bg-white/10 text-white/40'
+                    ? 'glass-ultra-thin border border-green-400/30'
+                    : 'glass-ultra-thin border border-white/10'
                 }`}>
-                  <span className="text-xl">{gamePhase === 'staking' ? '💰' : gamePhase === 'gameplay' || gamePhase === 'finished' ? '✅' : '🔒'}</span>
-                  <span className="font-semibold">2. Staking</span>
-                  {isDemoMode && (gamePhase === 'gameplay' || gamePhase === 'finished') && (
-                    <span className="text-xs bg-yellow-500/30 px-2 py-0.5 rounded">DEMO</span>
-                  )}
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                    gamePhase === 'staking'
+                      ? 'bg-gradient-to-br from-purple-400 to-pink-500 shadow-lg animate-pulse'
+                      : gamePhase === 'gameplay' || gamePhase === 'finished'
+                      ? 'bg-gradient-to-br from-green-400 to-emerald-500'
+                      : 'bg-white/10'
+                  }`}>
+                    <span className="text-lg">
+                      {gamePhase === 'staking' ? '💰' : 
+                       gamePhase === 'gameplay' || gamePhase === 'finished' ? '✅' : '🔒'}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-sm flex items-center gap-2">
+                      Staking
+                      {isDemoMode && (gamePhase === 'gameplay' || gamePhase === 'finished') && (
+                        <span className="text-xs bg-gradient-to-r from-yellow-400 to-orange-400 
+                                       text-black px-2 py-0.5 rounded-full font-bold">DEMO</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-white/60">Lock PYUSD</div>
+                  </div>
                 </div>
 
-                <div className="text-white/40">→</div>
+                {/* Connection line */}
+                <div className="flex-1 h-px bg-gradient-to-r from-white/20 via-white/40 to-white/20 relative">
+                  <div className={`absolute top-1/2 transform -translate-y-1/2 w-2 h-2 rounded-full transition-all ${
+                    gamePhase === 'gameplay' || gamePhase === 'finished'
+                      ? 'bg-green-400 shadow-lg left-full animate-pulse'
+                      : 'bg-white/40 left-0'
+                  }`}></div>
+                </div>
 
                 {/* Phase 3: Gameplay */}
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                <div className={`relative flex items-center gap-3 px-6 py-3 rounded-2xl transition-all duration-500 ${
                   gamePhase === 'gameplay' 
-                    ? 'bg-green-600 text-white shadow-lg animate-pulse' 
+                    ? 'glass-regular border-2 border-green-400/50 shadow-lg scale-105' 
                     : gamePhase === 'finished'
-                    ? 'bg-green-600/30 text-green-200'
-                    : 'bg-white/10 text-white/40'
+                    ? 'glass-regular border-2 border-yellow-400/50 shadow-lg'
+                    : 'glass-ultra-thin border border-white/10'
                 }`}>
-                  <span className="text-xl">{gamePhase === 'gameplay' ? '🎮' : gamePhase === 'finished' ? '🏆' : '⏳'}</span>
-                  <span className="font-semibold">3. Gameplay</span>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                    gamePhase === 'gameplay'
+                      ? 'bg-gradient-to-br from-green-400 to-emerald-500 shadow-lg animate-pulse'
+                      : gamePhase === 'finished'
+                      ? 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-lg'
+                      : 'bg-white/10'
+                  }`}>
+                    <span className="text-lg">
+                      {gamePhase === 'gameplay' ? '🎮' : gamePhase === 'finished' ? '🏆' : '⏳'}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-sm">
+                      {gamePhase === 'finished' ? 'Complete' : 'Gameplay'}
+                    </div>
+                    <div className="text-xs text-white/60">Strategic Battle</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -599,20 +662,42 @@ export default function GamePage() {
                       💬 <strong>Step 1:</strong> Chat with AI to negotiate stakes or try demo mode
                     </p>
                     
-                    {/* Quick Demo Button */}
-                    <div className="pt-2 border-t border-white/10">
+                    {/* Apple-style Demo Button */}
+                    <div className="pt-4">
+                      <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-4"></div>
                       <button
-                        onClick={() => handleNegotiationComplete(null, true)}
-                        className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 
-                                   text-white font-bold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl 
-                                   transform hover:scale-105 transition-all duration-200
-                                   border-2 border-yellow-400/20 hover:border-yellow-300/40"
+                        onClick={() => {
+                          console.log('Demo button clicked!')
+                          handleNegotiationComplete(null, true)
+                        }}
+                        className="btn-primary w-full py-4 px-6 rounded-2xl font-semibold text-lg relative overflow-hidden group 
+                                 cursor-pointer z-10"
                       >
-                        🎮 Start Demo Game
+                        <div className="flex items-center justify-center gap-3">
+                          <span className="text-2xl group-hover:animate-bounce">🎮</span>
+                          <span>Start Demo Game</span>
+                        </div>
+                        
+                        {/* Shimmer effect */}
+                        <div className="absolute inset-0 -translate-x-full animate-shimmer group-hover:translate-x-full 
+                                      bg-gradient-to-r from-transparent via-white/20 to-transparent 
+                                      transition-transform duration-1000 pointer-events-none"></div>
                       </button>
-                      <p className="text-xs text-white/60 mt-2">
-                        Skip negotiation • No stakes • Instant play
-                      </p>
+                      
+                      <div className="flex items-center justify-center gap-4 mt-3 text-xs text-white/60">
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div>
+                          <span>Skip negotiation</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+                          <span>No stakes required</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
+                          <span>Instant play</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -637,92 +722,124 @@ export default function GamePage() {
 
           {/* Right Panel - Game Strategy & AI */}
           <div className="space-y-6">
-            {/* Strategic Game Guide */}
-            <div className="glass rounded-2xl p-6 border border-white/20">
-              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <span>🎯</span>
-                4x4 QuadraX Rules
-              </h3>
+            {/* Compact QuadraX Rules */}
+            <div className="glass-thick rounded-2xl overflow-hidden border border-white/20 relative">
+              {/* Header with gradient */}
+              <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 p-4 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-400 to-purple-500 
+                                  flex items-center justify-center shadow-lg">
+                    <span className="text-lg">🎯</span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white">QuadraX Rules</h3>
+                    <p className="text-xs text-white/70">4×4 Strategic Battle</p>
+                  </div>
+                </div>
+              </div>
               
-              <div className="space-y-4 text-sm">
-                {/* Game Phases */}
-                <div>
-                  <h4 className="font-semibold text-cyan-400 mb-2">Game Phases</h4>
-                  <div className="space-y-1 text-white/80">
-                    <div className="flex items-center gap-2">
+              <div className="p-4 space-y-4">
+                {/* Compact Game Flow */}
+                <div className="flex items-center justify-between glass-ultra-thin rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-cyan-400/20 flex items-center justify-center">
                       <span className="text-xs">🔹</span>
-                      <span><strong>Placement:</strong> Each player places 4 pieces</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <span className="text-sm text-white/90">Place 4 pieces</span>
+                  </div>
+                  <span className="text-white/40">→</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-purple-400/20 flex items-center justify-center">
                       <span className="text-xs">🔄</span>
-                      <span><strong>Movement:</strong> Move any piece to any empty cell</span>
                     </div>
+                    <span className="text-sm text-white/90">Move freely</span>
                   </div>
                 </div>
 
-                {/* Win Conditions */}
+                {/* Win Patterns Grid */}
                 <div>
-                  <h4 className="font-semibold text-purple-400 mb-2">Win Conditions</h4>
-                  <div className="space-y-2 text-white/80">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs">→</span>
-                      <span>4 in a row (horizontal/vertical/diagonal)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs">⬛</span>
-                      <span>2x2 square block anywhere on board</span>
+                  <h4 className="text-sm font-semibold text-white/90 mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-gradient-to-r from-green-400 to-emerald-500"></span>
+                    Win Patterns
+                  </h4>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* 4-in-Row Pattern */}
+                    <div className="glass-ultra-thin rounded-xl p-3 group hover:scale-105 transition-all duration-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-cyan-400">4-in-Row</span>
+                        <span className="text-xs text-white/60">→</span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-0.5 mb-2">
+                        {[1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0].map((cell, i) => (
+                          <div key={i} className={`w-2.5 h-2.5 rounded-sm transition-all ${
+                            cell === 1 
+                              ? 'bg-gradient-to-br from-cyan-400 to-blue-500 shadow-sm group-hover:shadow-lg' 
+                              : 'bg-white/10'
+                          }`}></div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-white/70">H • V • D</p>
                     </div>
                     
-                    {/* Mini pattern examples */}
-                    <div className="mt-3 space-y-2">
-                      <div className="text-xs text-white/60">Winning Patterns:</div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {/* 4-in-row example */}
-                        <div className="bg-slate-800/30 rounded p-2">
-                          <div className="text-xs text-cyan-400 mb-1">4-in-Row</div>
-                          <div className="grid grid-cols-4 gap-0.5">
-                            {[1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0].map((cell, i) => (
-                              <div key={i} className={`w-2 h-2 rounded-sm ${
-                                cell === 1 ? 'bg-cyan-400' : 'bg-slate-600/50'
-                              }`}></div>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        {/* 2x2 block example */}
-                        <div className="bg-slate-800/30 rounded p-2">
-                          <div className="text-xs text-purple-400 mb-1">2x2 Block</div>
-                          <div className="grid grid-cols-4 gap-0.5">
-                            {[1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0].map((cell, i) => (
-                              <div key={i} className={`w-2 h-2 rounded-sm ${
-                                cell === 1 ? 'bg-purple-400' : 'bg-slate-600/50'
-                              }`}></div>
-                            ))}
-                          </div>
-                        </div>
+                    {/* 2×2 Block Pattern */}
+                    <div className="glass-ultra-thin rounded-xl p-3 group hover:scale-105 transition-all duration-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-purple-400">2×2 Block</span>
+                        <span className="text-xs text-white/60">⬛</span>
                       </div>
+                      <div className="grid grid-cols-4 gap-0.5 mb-2">
+                        {[1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0].map((cell, i) => (
+                          <div key={i} className={`w-2.5 h-2.5 rounded-sm transition-all ${
+                            cell === 1 
+                              ? 'bg-gradient-to-br from-purple-400 to-pink-500 shadow-sm group-hover:shadow-lg' 
+                              : 'bg-white/10'
+                          }`}></div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-white/70">Any position</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Current Game Stats */}
+                {/* Live Game Status */}
                 {gamePhase === 'gameplay' && (
-                  <div>
-                    <h4 className="font-semibold text-yellow-400 mb-2">Game Status</h4>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="bg-slate-800/50 rounded p-2">
-                        <div className="text-cyan-400 font-semibold">Player X</div>
-                        <div className="text-white/80">{board.filter(cell => cell === 1).length}/4 pieces</div>
+                  <div className="glass-ultra-thin rounded-xl p-3 border border-green-400/30">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-green-400 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                        Live Game
+                      </h4>
+                      <div className="text-xs px-2 py-1 rounded-full bg-gradient-to-r from-yellow-400/20 to-orange-400/20 
+                                    border border-yellow-400/30 text-yellow-400 font-medium">
+                        {placementPhase ? 'Placement' : 'Movement'}
                       </div>
-                      <div className="bg-slate-800/50 rounded p-2">
-                        <div className="text-pink-400 font-semibold">AI O</div>
-                        <div className="text-white/80">{board.filter(cell => cell === 2).length}/4 pieces</div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      {/* Player X Stats */}
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 
+                                        flex items-center justify-center shadow-md">
+                          <span className="text-xs text-white font-bold">X</span>
+                        </div>
+                        <div className="text-xs">
+                          <div className="text-cyan-400 font-semibold">Player</div>
+                          <div className="text-white/70">{board.filter(cell => cell === 1).length}/4</div>
+                        </div>
                       </div>
-                      <div className="col-span-2 bg-slate-800/50 rounded p-2">
-                        <div className="text-white/90">
-                          Phase: <span className="text-yellow-400 font-semibold">
-                            {placementPhase ? 'Placement' : 'Movement'}
-                          </span>
+                      
+                      <div className="text-white/30">vs</div>
+                      
+                      {/* AI O Stats */}
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-pink-400 to-red-500 
+                                        flex items-center justify-center shadow-md">
+                          <span className="text-xs text-white font-bold">O</span>
+                        </div>
+                        <div className="text-xs">
+                          <div className="text-pink-400 font-semibold">AI</div>
+                          <div className="text-white/70">{board.filter(cell => cell === 2).length}/4</div>
                         </div>
                       </div>
                     </div>
@@ -749,7 +866,7 @@ export default function GamePage() {
       <footer className="glass border-t border-white/20">
         <div className="container mx-auto px-4 py-4 text-center">
           <p className="text-sm text-white/60">
-            Built for ETHOnline 2024 | PYUSD × ASI × Hedera
+            Built for ETHOnline 2025 | PYUSD × ASI × Hedera
           </p>
         </div>
       </footer>

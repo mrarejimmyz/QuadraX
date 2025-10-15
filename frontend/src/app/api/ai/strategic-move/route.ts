@@ -182,6 +182,89 @@ function selectOptimalPieceForTarget(board: number[], aiPieces: number[], target
   return { from: bestFrom, to: targetPosition }
 }
 
+// Optimized Multi-Threat Detection - Prevent T-patterns & Forks
+function detectAndBlockMultiThreat(board: number[], availableMoves: number[], player: number): number | null {
+  console.log('🔍 Multi-threat scan: T-patterns & forks')
+  
+  for (const move of availableMoves) {
+    // Simulate player move
+    board[move] = player
+    
+    // Count winning opportunities this creates
+    const threats = availableMoves
+      .filter(pos => pos !== move)
+      .filter(pos => {
+        board[pos] = player
+        const isWin = checkWin(board, player)
+        board[pos] = 0 // Restore
+        return isWin
+      })
+    
+    board[move] = 0 // Restore board
+    
+    // Block if creates 2+ threats (fork/T-pattern)
+    if (threats.length >= 2) {
+      console.log(`🚨 Fork detected! Move ${move} → ${threats.length} threats [${threats.join(',')}]`)
+      return move
+    }
+  }
+  
+  return null
+}
+
+// Multi-Threat Detection for Movement Phase
+function detectMovementMultiThreat(board: number[], possibleMoves: any[], playerPieces: number[]): any | null {
+  console.log('🔍 Scanning for movement-based multi-threat scenarios...')
+  
+  // For each possible player movement
+  for (const playerPiece of playerPieces) {
+    const emptySpaces = board.map((cell, index) => cell === 0 ? index : -1).filter(i => i !== -1)
+    
+    for (const targetPosition of emptySpaces) {
+      // Simulate player moving piece to target position
+      const testBoard = [...board]
+      testBoard[playerPiece] = 0
+      testBoard[targetPosition] = 1
+      
+      // Count how many immediate winning moves this creates for the player
+      let winningThreats = 0
+      const threatMoves: {from: number, to: number}[] = []
+      
+      // Check all remaining player pieces for winning moves
+      const remainingPlayerPieces = testBoard.map((cell, index) => cell === 1 ? index : -1).filter(i => i !== -1)
+      const newEmptySpaces = testBoard.map((cell, index) => cell === 0 ? index : -1).filter(i => i !== -1)
+      
+      for (const piece of remainingPlayerPieces) {
+        for (const empty of newEmptySpaces) {
+          const winTestBoard = [...testBoard]
+          winTestBoard[piece] = 0
+          winTestBoard[empty] = 1
+          
+          if (checkWin(winTestBoard, 1)) {
+            winningThreats++
+            threatMoves.push({from: piece, to: empty})
+          }
+        }
+      }
+      
+      // If player creates multiple threats, try to block the setup move
+      if (winningThreats >= 2) {
+        console.log(`🚨 MOVEMENT MULTI-THREAT! Player ${playerPiece}→${targetPosition} creates ${winningThreats} threats:`, threatMoves)
+        
+        // Find our move that can occupy the target position to prevent setup
+        for (const ourMove of possibleMoves) {
+          if (ourMove.to === targetPosition) {
+            console.log(`🛡️ Blocking setup by occupying position ${targetPosition}`)
+            return ourMove
+          }
+        }
+      }
+    }
+  }
+  
+  return null
+}
+
 // Elite QuadraX AI - Ruthless Placement Strategy
 function getBestPlacement(board: number[], availableMoves: number[]) {
   console.log('🎯 AI Analyzing placement options:', availableMoves)
@@ -196,7 +279,9 @@ function getBestPlacement(board: number[], availableMoves: number[]) {
     }
   }
   
-  // PRIORITY 2: Block player from winning
+  // PRIORITY 2: Block player from winning (including multi-threat scenarios)
+  
+  // First check for immediate wins to block
   for (const move of availableMoves) {
     const testBoard = [...board]
     testBoard[move] = 1 // Test if player could win here
@@ -204,6 +289,13 @@ function getBestPlacement(board: number[], availableMoves: number[]) {
       console.log('🛡️ AI BLOCKING PLAYER WIN at:', move)
       return { move }
     }
+  }
+  
+  // CRITICAL: Check for T-patterns and multi-threat setups
+  const multiThreatMove = detectAndBlockMultiThreat(board, availableMoves, 1)
+  if (multiThreatMove !== null) {
+    console.log('🚨 AI PREVENTING MULTI-THREAT SETUP at:', multiThreatMove)
+    return { move: multiThreatMove }
   }
   
   // PRIORITY 3: Strategic positioning with deep analysis
@@ -240,6 +332,38 @@ function getBestMovement(board: number[], possibleMoves: any[]) {
   
   // PRIORITY 2: Block player from winning on their next move
   const playerPieces = board.map((cell, index) => cell === 1 ? index : -1).filter(i => i !== -1)
+  
+  // First check immediate threats
+  for (const move of possibleMoves) {
+    const testBoard = [...board]
+    testBoard[move.from] = 0
+    testBoard[move.to] = 2
+    
+    // Check if any player piece can create immediate win after our move
+    const emptySpaces = testBoard.map((cell, index) => cell === 0 ? index : -1).filter(i => i !== -1)
+    for (const playerPiece of playerPieces) {
+      if (testBoard[playerPiece] === 1) { // Player piece still exists
+        for (const empty of emptySpaces) {
+          const playerTestBoard = [...testBoard]
+          playerTestBoard[playerPiece] = 0
+          playerTestBoard[empty] = 1
+          if (checkWin(playerTestBoard, 1)) {
+            // Player has immediate win threat, but check if we can block it
+            console.log(`⚠️ Player piece at ${playerPiece} can win by moving to ${empty}`)
+          }
+        }
+      }
+    }
+  }
+  
+  // CRITICAL: Check for movement-based multi-threat scenarios
+  const multiThreatBlockingMove = detectMovementMultiThreat(board, possibleMoves, playerPieces)
+  if (multiThreatBlockingMove !== null) {
+    console.log('🚨 AI PREVENTING MOVEMENT MULTI-THREAT with:', multiThreatBlockingMove)
+    return { movement: multiThreatBlockingMove }
+  }
+  
+  // Legacy blocking logic for single threats
   for (const move of possibleMoves) {
     const testBoard = [...board]
     testBoard[move.from] = 0

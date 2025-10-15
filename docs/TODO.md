@@ -2,7 +2,7 @@
 
 > Detailed task breakdown for building the agentic 4x4 Tic-Tac-Toe game
 
-## 📅 Timeline: October 10–26, 2024
+## 📅 Timeline: October 10–26, 2025
 
 ---
 
@@ -344,4 +344,4 @@
 
 ---
 
-**Last Updated**: October 10, 2024
+**Last Updated**: October 10, 2025

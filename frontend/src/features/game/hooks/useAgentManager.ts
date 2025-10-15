@@ -15,21 +15,37 @@ export function useAgentManager() {
 
   const checkASIStatus = async (): Promise<{ connected: boolean, responseTime: number, modelVersion: string }> => {
     const startTime = Date.now()
+    
     try {
-      const response = await fetch('http://localhost:11434/api/tags', {
+      // Check if ASI Alliance API key is configured
+      const asiApiKey = process.env.NEXT_PUBLIC_ASI_API_KEY
+      if (!asiApiKey) {
+        console.warn('ASI Alliance API key not configured in environment')
+        return { connected: false, responseTime: Date.now() - startTime, modelVersion: 'no-api-key' }
+      }
+
+      // Test ASI Alliance API connection
+      const response = await fetch('https://api.asi1.ai/v1/models', {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${asiApiKey}`
+        }
       })
       
       if (response.ok) {
         const data = await response.json()
         const responseTime = Date.now() - startTime
-        const modelVersion = data.models?.[0]?.name || 'llama3.2:latest'
+        const modelVersion = data.data?.[0]?.id || 'asi1-mini'
+        console.log('✅ ASI Alliance connected successfully')
         return { connected: true, responseTime, modelVersion }
+      } else {
+        console.warn('ASI Alliance API responded with status:', response.status)
       }
     } catch (error) {
-      console.log('ASI Alliance API check:', error)
+      console.warn('ASI Alliance connection test failed:', error)
     }
+    
     return { connected: false, responseTime: Date.now() - startTime, modelVersion: 'offline' }
   }
 

@@ -277,7 +277,7 @@ export default function Home() {
                   <AIChat 
                     aiName="Hedera Agent Kit A2A Demo"
                     enabled={true}
-                    gameId="hackathon-demo-2024"
+                    gameId="hackathon-demo-2025"
                   />
                 </ErrorBoundary>
               </div>
@@ -318,7 +318,7 @@ export default function Home() {
       <footer className="glass border-t border-white/20 mt-auto">
         <div className="container mx-auto px-4 py-4 text-center">
           <div className="flex flex-wrap justify-center items-center gap-4 text-sm text-white/60">
-            <span className="emoji">🏆</span> Hackathon 2024
+            <span className="emoji">🏆</span> Hackathon 2025
             <span>•</span>
             <span className="emoji">💰</span> PYUSD Integration
             <span>•</span>

@@ -28,146 +28,169 @@ export default function Board({
   }
 
   const getCellColor = (value: number) => {
-    if (value === 1) return 'text-cyan-400 drop-shadow-lg'
-    if (value === 2) return 'text-pink-400 drop-shadow-lg'
+    if (value === 1) return 'text-cyan-400'
+    if (value === 2) return 'text-pink-400'
     return 'text-white/30'
   }
 
   return (
-    <div className="w-full max-w-lg mx-auto">
-      <div className="glass rounded-3xl p-8 border border-white/20 shadow-2xl">
-        <div className="text-center mb-6">
-          <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-            🎯 4x4 Strategic Tic-Tac-Toe
-          </h3>
-          <div className="flex items-center justify-center gap-4 mb-2">
-            <div className="text-sm font-semibold text-cyan-400">
-              X: {piecesPlaced.player1}/4
+    <div className="w-full max-w-lg mx-auto space-y-8 p-4">
+      {/* Glassmorphism Header */}
+      <div className="text-center py-6">
+        <div className="glass-thin rounded-2xl px-8 py-4 mx-4 backdrop-blur-2xl 
+                      border border-white/10 shadow-xl">
+          <h2 className="text-white/95 font-bold text-xl tracking-wide">QuadraX</h2>
+          <p className="text-white/60 text-sm mt-1">Strategic Battle</p>
+        </div>
+      </div>
+
+      {/* Glassmorphism Player Status */}
+      <div className="px-4 py-2">
+        <div className="glass-thin rounded-3xl px-8 py-6 backdrop-blur-2xl 
+                      border border-white/15 shadow-2xl">
+          <div className="flex items-center justify-center gap-16">
+            {/* Player X */}
+            <div className="text-center">
+              <div className={`w-18 h-18 rounded-2xl flex items-center justify-center mb-3 
+                            backdrop-blur-xl border transition-all duration-500 shadow-xl ${
+                currentPlayer === 1 && !disabled 
+                  ? 'glass-selected border-cyan-400/50 shadow-cyan-400/30 animate-pulse-subtle' 
+                  : 'glass-ultra-thin border-white/10'
+              }`}>
+                <span className="text-cyan-400 text-2xl font-black drop-shadow-lg">X</span>
+              </div>
+              <div className="text-cyan-400 font-medium text-sm">You ({piecesPlaced.player1}/4)</div>
             </div>
-            <div className="text-xs text-white/60 bg-slate-700/50 px-2 py-1 rounded">
-              {gamePhase === 'placement' ? '🔹 Placement Phase' : '🔄 Movement Phase'}
+
+            {/* VS Glass Separator */}
+            <div className="glass-ultra-thin rounded-full w-12 h-12 flex items-center justify-center 
+                          border border-white/10 backdrop-blur-xl">
+              <span className="text-white/60 font-bold text-sm">VS</span>
             </div>
-            <div className="text-sm font-semibold text-pink-400">
-              O: {piecesPlaced.player2}/4
+
+            {/* Player O */}
+            <div className="text-center">
+              <div className={`w-18 h-18 rounded-2xl flex items-center justify-center mb-3 
+                            backdrop-blur-xl border transition-all duration-500 shadow-xl ${
+                currentPlayer === 2 && !disabled 
+                  ? 'glass-selected border-pink-400/50 shadow-pink-400/30 animate-pulse-subtle' 
+                  : 'glass-ultra-thin border-white/10'
+              }`}>
+                <span className="text-pink-400 text-2xl font-black drop-shadow-lg">O</span>
+              </div>
+              <div className="text-pink-400 font-medium text-sm">AI ({piecesPlaced.player2}/4)</div>
             </div>
           </div>
-          <div className="h-1 w-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mx-auto"></div>
         </div>
-        
-        {/* Enhanced Game Board */}
-        <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/90 rounded-2xl p-6 shadow-inner">
-          
-          {/* Premium 4x4 Grid */}
-          <div 
-            className="grid gap-3 mx-auto"
-            style={{ 
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gridTemplateRows: 'repeat(4, 1fr)',
-              width: '320px',
-              height: '320px'
-            }}
-          >
-            {board.map((cell, index) => (
+      </div>
+
+      {/* Continuous Glassmorphism Game Board */}
+      <div className="mx-4 py-2">
+        <div className="glass-thick rounded-3xl p-8 backdrop-blur-3xl border border-white/20 
+                       shadow-2xl shadow-black/50">
+        <div 
+          className="grid gap-3 mx-auto"
+          style={{ 
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateRows: 'repeat(4, 1fr)',
+            width: '300px',
+            height: '300px'
+          }}
+        >
+          {board.map((cell, index) => {
+            const isClickable = !disabled && (
+              (gamePhase === 'placement' && cell === 0 && piecesPlaced.player1 < 4 && currentPlayer === 1) ||
+              (gamePhase === 'movement' && currentPlayer === 1 && (cell === 1 || (selectedCell !== null && cell === 0)))
+            )
+            
+            return (
               <button
                 key={index}
                 onClick={() => !disabled && onCellClick(index)}
-                disabled={disabled}
+                disabled={disabled || !isClickable}
                 className={`
                   relative group
                   flex items-center justify-center
+                  w-full h-full
+                  rounded-2xl
                   text-3xl font-black
+                  transition-all duration-500 ease-out
+                  backdrop-blur-xl
                   ${selectedCell === index 
-                    ? 'bg-gradient-to-br from-yellow-400/30 to-orange-400/30 border-2 border-yellow-400/70' 
-                    : 'bg-gradient-to-br from-slate-700/80 to-slate-800/90 border-2 border-slate-600/50'
+                    ? 'glass-selected border-2 border-yellow-400/80 shadow-2xl shadow-yellow-400/40 scale-110' 
+                    : cell === 0 
+                      ? (isClickable 
+                        ? 'glass-ultra-thin border border-white/10 hover:glass-thin hover:border-white/20 cursor-pointer hover:scale-105 animate-pulse-subtle' 
+                        : 'glass-ultra-thin border border-white/5')
+                      : 'glass-thin border border-white/15 shadow-xl'
                   }
-                  rounded-xl shadow-lg
                   ${getCellColor(cell)}
-                  ${!disabled && (
-                    (gamePhase === 'placement' && cell === 0 && piecesPlaced.player1 < 4 && currentPlayer === 1) ||
-                    (gamePhase === 'movement' && currentPlayer === 1 && (cell === 1 || (selectedCell !== null && cell === 0)))
-                  )
-                    ? 'cursor-pointer hover:shadow-xl hover:scale-105 hover:border-white/40' 
-                    : !disabled && cell !== 0
-                    ? 'cursor-default' 
-                    : 'cursor-not-allowed opacity-60'
-                  }
-                  transition-all duration-200 ease-out
-                  backdrop-blur-sm
                 `}
               >
-                {/* Cell highlight effects */}
-                {!disabled && (
-                  <>
-                    {/* Empty cell hover */}
-                    {cell === 0 && (
-                      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-400/0 to-purple-400/0 group-hover:from-blue-400/20 group-hover:to-purple-400/20 transition-all duration-200"></div>
-                    )}
-                    
-                    {/* Player piece selection hint in movement phase */}
-                    {gamePhase === 'movement' && currentPlayer === 1 && cell === 1 && (
-                      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-cyan-400/10 to-blue-400/10 group-hover:from-cyan-400/30 group-hover:to-blue-400/30 transition-all duration-200"></div>
-                    )}
-                  </>
-                )}
-                
-                {/* Cell content */}
-                <span className="relative z-10 drop-shadow-lg">
-                  {getCellContent(cell)}
-                </span>
-                
-                {/* Cell number indicator (subtle) */}
-                {!disabled && cell === 0 && (
-                  <span className="absolute top-1 left-1 text-xs text-white/20 font-mono">
-                    {index + 1}
+                {/* Clean piece display */}
+                {cell !== 0 && (
+                  <span className={`${getCellColor(cell)} drop-shadow-xl`}
+                        style={{
+                          fontSize: '2.5rem',
+                          fontWeight: '900',
+                          textShadow: cell === 1 
+                            ? '0 0 15px rgba(34,211,238,0.6), 0 4px 8px rgba(0,0,0,0.8)'
+                            : '0 0 15px rgba(244,114,182,0.6), 0 4px 8px rgba(0,0,0,0.8)'
+                        }}>
+                    {getCellContent(cell)}
                   </span>
                 )}
+                
+                {/* Available move indicator for empty cells */}
+                {cell === 0 && isClickable && currentPlayer === 1 && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-3 h-3 rounded-full bg-gradient-to-br from-cyan-400/40 to-blue-500/30 
+                                  animate-pulse shadow-lg shadow-cyan-400/20 border border-cyan-400/50"></div>
+                  </div>
+                )}
+                
+                {/* Movement selection indicator */}
+                {gamePhase === 'movement' && currentPlayer === 1 && cell === 1 && (
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-400/15 to-blue-500/10 
+                                animate-pulse border border-cyan-400/40"></div>
+                )}
               </button>
-            ))}
-          </div>
+            )
+          })}
         </div>
-        
-        {/* Enhanced Turn Indicator */}
-        <div className="text-center mt-6">
+        </div>
+      </div>
+
+      {/* Glassmorphism Turn Indicator */}
+      <div className="px-4 py-2">
+        <div className={`glass-thin rounded-2xl px-6 py-4 text-center backdrop-blur-2xl 
+                       border shadow-xl transition-all duration-500 ${
+          !disabled && currentPlayer === 1 
+            ? 'border-cyan-400/30 shadow-cyan-400/20 animate-pulse-subtle'
+            : !disabled && currentPlayer === 2
+            ? 'border-pink-400/30 shadow-pink-400/20'
+            : 'border-white/10'
+        }`}>
           {disabled ? (
-            <div className="bg-slate-700/50 rounded-xl px-4 py-3 border border-slate-600/30">
-              <p className="text-sm text-white/60 font-medium">Game not active</p>
-            </div>
-          ) : currentPlayer === 1 ? (
-            <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-xl px-6 py-3 border border-cyan-400/30">
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-2xl">🎯</span>
-                <div>
-                  <p className="text-cyan-400 font-bold text-lg">Your Turn</p>
-                  <p className="text-cyan-300/80 text-sm">
-                    {gamePhase === 'placement' 
-                      ? `Place X (${4 - piecesPlaced.player1} left)`
-                      : selectedCell !== null 
-                      ? 'Click empty cell to move selected X'
-                      : 'Click any of your X pieces to select & move'
-                    }
-                  </p>
-                  {gamePhase === 'movement' && selectedCell === null && (
-                    <p className="text-cyan-200/60 text-xs mt-1">
-                      💡 Your X pieces have a blue glow - click them!
-                    </p>
-                  )}
-                </div>
-              </div>
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-2 h-2 bg-white/40 rounded-full animate-pulse"></div>
+              <p className="text-white/60 text-sm font-medium">Initializing game...</p>
             </div>
           ) : (
-            <div className="bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-xl px-6 py-3 border border-pink-400/30">
-              <div className="flex items-center justify-center gap-2 animate-pulse">
-                <span className="text-2xl">🤖</span>
-                <div>
-                  <p className="text-pink-400 font-bold text-lg">AI Turn</p>
-                  <p className="text-pink-300/80 text-sm">
-                    {gamePhase === 'placement'
-                      ? `Placing O (${4 - piecesPlaced.player2} left)`
-                      : 'Moving strategically...'
-                    }
-                  </p>
-                </div>
-              </div>
+            <div>
+              <p className={`font-bold text-lg ${
+                currentPlayer === 1 ? 'text-cyan-400' : 'text-pink-400'
+              }`}>
+                {currentPlayer === 1 ? 'Your Turn' : 'AI Thinking'}
+              </p>
+              <p className="text-white/70 text-sm mt-1 font-medium">
+                {currentPlayer === 1 
+                  ? (gamePhase === 'placement' 
+                    ? `Place piece (${4 - piecesPlaced.player1} remaining)`
+                    : (selectedCell !== null ? 'Choose destination' : 'Select piece to move'))
+                  : 'Calculating optimal move...'
+                }
+              </p>
             </div>
           )}
         </div>

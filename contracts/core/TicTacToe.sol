@@ -7,7 +7,7 @@ import "../interfaces/IGame.sol";
 /**
  * @title TicTacToe
  * @dev 4x4 Tic-Tac-Toe with modular library architecture
- * @notice Core game logic for QuadraX - ETHOnline 2024
+ * @notice Core game logic for QuadraX - ETHOnline 2025
  */
 contract TicTacToe is IGame {
     using GameLogic for uint8[16];

@@ -310,7 +310,7 @@ export default function CompleteStakingDemo() {
       <footer className="glass border-t border-white/20">
         <div className="container mx-auto px-4 py-4 text-center">
           <p className="text-sm text-white/60">
-            🚀 Built for ETHOnline 2024 | PYUSD × ASI × Hedera | Intelligent AI Staking System
+            🚀 Built for ETHOnline 2025 | PYUSD × ASI × Hedera | Intelligent AI Staking System
           </p>
         </div>
       </footer>

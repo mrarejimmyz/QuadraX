@@ -546,7 +546,7 @@ Use ASI Alliance protocols for seamless agent interoperability.`,
         author: 'QuadraX Team',
         homepage: 'https://github.com/mrarejimmyz/QuadraX'
       },
-      protocolVersion: '2024-11-05'
+      protocolVersion: '2025-11-05'
     };
   }
 

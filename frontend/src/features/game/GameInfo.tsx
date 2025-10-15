@@ -47,43 +47,89 @@ export default function GameInfo({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Status */}
-      <div className={`${getStatusColor()} border rounded-xl p-4 text-center`}>
-        <p className="text-lg font-semibold">{getStatusText()}</p>
+    <div className="space-y-6">
+      {/* Apple-style Status Card */}
+      <div className={`glass-thick border-2 rounded-2xl p-6 text-center relative overflow-hidden ${getStatusColor()}`}>
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+        <div className="flex items-center justify-center gap-3">
+          <div className="w-3 h-3 rounded-full bg-current animate-pulse"></div>
+          <p className="text-lg font-semibold">{getStatusText()}</p>
+        </div>
       </div>
 
-      {/* Players */}
-      <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-3 text-white/80">Players</h3>
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-blue-400 font-semibold">Player X:</span>
-            <span className="text-sm text-white/90">{shortenAddress(player1Address)}</span>
+      {/* Enhanced Players Card */}
+      <div className="glass-thick rounded-2xl p-6 relative">
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+        <h3 className="text-sm font-semibold mb-4 text-white/80 flex items-center gap-2">
+          <span>👥</span> Players
+        </h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-3 glass-ultra-thin rounded-xl">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 
+                              flex items-center justify-center shadow-lg">
+                <span className="text-white text-sm font-bold">X</span>
+              </div>
+              <span className="text-cyan-400 font-semibold">Player</span>
+            </div>
+            <span className="text-sm text-white/90 font-mono bg-white/5 px-2 py-1 rounded-lg">
+              {shortenAddress(player1Address)}
+            </span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-pink-400 font-semibold">Player O:</span>
-            <span className="text-sm text-white/90">{shortenAddress(player2Address)}</span>
+          <div className="flex items-center justify-between p-3 glass-ultra-thin rounded-xl">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-red-500 
+                              flex items-center justify-center shadow-lg">
+                <span className="text-white text-sm font-bold">O</span>
+              </div>
+              <span className="text-pink-400 font-semibold">QuadraX AI</span>
+            </div>
+            <span className="text-sm text-white/90 font-mono bg-white/5 px-2 py-1 rounded-lg">
+              {shortenAddress(player2Address)}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Pot */}
+      {/* Enhanced Prize Pot */}
       {pot && (
-        <div className="glass rounded-xl p-4">
-          <h3 className="text-sm font-semibold mb-2 text-white/80">Prize Pot</h3>
-          <div className="text-2xl font-bold text-green-400">
-            {pot} PYUSD
+        <div className="glass-thick rounded-2xl p-6 border border-green-400/20 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-400/10 to-emerald-400/5"></div>
+          <div className="relative">
+            <h3 className="text-sm font-semibold mb-3 text-white/80 flex items-center gap-2">
+              <span>💰</span> Prize Pool
+            </h3>
+            <div className="text-center">
+              <div className="text-3xl font-black bg-gradient-to-r from-green-400 to-emerald-400 
+                              bg-clip-text text-transparent">
+                {pot} PYUSD
+              </div>
+              <p className="text-xs text-green-400/80 mt-1">Winner takes all</p>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Game Instructions */}
-      <div className="glass rounded-xl p-4">
-        <h3 className="text-sm font-semibold mb-2 text-white/80">How to Win</h3>
-        <p className="text-xs text-white/70">
-          Get 4 in a row (horizontal, vertical, or diagonal) to win the pot!
-        </p>
+      {/* Modern Rules Card */}
+      <div className="glass-thick rounded-2xl p-6 relative">
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+        <h3 className="text-sm font-semibold mb-3 text-white/80 flex items-center gap-2">
+          <span>🎯</span> Win Conditions
+        </h3>
+        <div className="space-y-2 text-xs text-white/70">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+            <span>4 in a row (horizontal/vertical/diagonal)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
+            <span>2×2 square block anywhere</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-pink-400"></div>
+            <span>First to achieve pattern wins!</span>
+          </div>
+        </div>
       </div>
     </div>
   )
