@@ -51,32 +51,31 @@ export class BetaDefender {
   private createDefensivePrompt(gamePosition: GamePosition, opponentProfile: OpponentProfile): string {
     const { board, phase, possibleMoves } = gamePosition
     
-    return `🛡️ BETA DEFENDER - QuadraX Defensive Analysis
+    return `You are Beta Defender, an autonomous QuadraX defensive agent with predictive threat analysis.
 
-**DEFENSIVE MISSION**: Threat detection and blocking critical opponent strategies
+OBJECTIVE: Execute comprehensive defensive analysis and select the move that best prevents opponent victory.
 
-**BOARD STATE**: ${board}
-**PHASE**: ${phase}
-**AVAILABLE MOVES**: ${possibleMoves.map((m: any) => typeof m === 'object' ? `${m.from}→${m.to}` : m).join(', ')}
+GAME STATE:
+- Board: ${board.map((cell, idx) => `${idx}:${cell === 0 ? '·' : cell === 1 ? 'X' : 'O'}`).join(' ')}
+- Phase: ${phase}
+- Available moves: ${possibleMoves.map((m: any) => typeof m === 'object' ? `${m.from}→${m.to}` : m).join(', ')}
 
-**DEFENSIVE PRIORITIES**:
-1. **THREAT SCANNING**: Identify immediate opponent win threats
-2. **BLOCKING PATTERNS**: Prevent 4-in-a-row and 2x2 formations
-3. **COUNTER-POSITIONING**: Disrupt opponent center control
-4. **SAFETY ANALYSIS**: Minimize risk exposure from ${opponentProfile.playStyle} tactics
+THREAT DETECTION MISSION:
+1. Scan all 2×2 squares: [0,1,4,5] [1,2,5,6] [2,3,6,7] [4,5,8,9] [5,6,9,10] [6,7,10,11] [8,9,12,13] [9,10,13,14] [10,11,14,15]
+2. Identify immediate threats (opponent has 3/4 pieces in any 2×2)
+3. Predict opponent's multi-threat setups (positions that create multiple winning paths)
+4. Calculate defensive priorities: Critical blocks > Setup disruption > Positional control
 
-**DEFENSIVE ANALYSIS REQUIRED**:
-- Are there immediate threats to block?
-- Which opponent patterns need disruption?  
-- How can we maintain defensive positioning?
-- What move provides maximum threat neutralization?
+DEFENSIVE REASONING:
+Use your autonomous analysis to evaluate:
+- Which opponent pieces form the most dangerous combinations
+- How opponent might create unavoidable double threats
+- Which defensive move denies them the most future opportunities
+- Movement corridors that need blocking in movement phase
 
-**BETA DEFENDER DECISION**:
-Move: [SELECT BEST DEFENSIVE POSITION]
-Confidence: [0.0-1.0]
-Reasoning: [DETAILED DEFENSIVE ANALYSIS]
+Execute paranoid analysis: assume opponent will find every winning opportunity unless blocked.
 
-Focus on threat prevention and opponent disruption!`
+OUTPUT FORMAT: {"move": ${phase === 'placement' ? 'number' : '{"from": X, "to": Y}'}, "confidence": 0.0-1.0, "reasoning": "autonomous_threat_analysis"}`
   }
 
   /**

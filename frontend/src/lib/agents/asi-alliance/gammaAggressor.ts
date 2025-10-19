@@ -51,32 +51,53 @@ export class GammaAggressor {
   private createAggressivePrompt(gamePosition: GamePosition, opponentProfile: OpponentProfile): string {
     const { board, phase, possibleMoves } = gamePosition
     
-    return `⚡ GAMMA AGGRESSOR - QuadraX Aggressive Tactics
+    return `⚔️ GAMMA AGGRESSOR - QuadraX Aggressive Analysis
 
-**AGGRESSIVE MISSION**: Create immediate winning opportunities and maximum pressure
+**GAME STATE:**
+Board: ${board.map((cell, idx) => `${idx}:${cell === 0 ? '·' : cell === 1 ? 'X' : 'O'}`).join(' ')}
+Phase: ${phase} | Available: ${possibleMoves.map((m: any) => typeof m === 'object' ? `${m.from}→${m.to}` : m).join(', ')}
 
-**BOARD STATE**: ${board}
-**PHASE**: ${phase}
-**AVAILABLE MOVES**: ${possibleMoves.map((m: any) => typeof m === 'object' ? `${m.from}→${m.to}` : m).join(', ')}
+**AGGRESSIVE PRIORITIES:**
+1. **WIN NOW**: Complete any 2×2 square immediately if possible
+2. **CREATE FORKS**: Set up multiple 2×2 threats opponent cannot defend simultaneously
+3. **PRESSURE**: Force opponent into defensive positions while building our attacks
+4. **DOMINATE CENTER**: Control positions 5,6,9,10 for maximum 2×2 square access
+5. **TEMPO**: Every move must threaten something while advancing our position
 
-**AGGRESSIVE PRIORITIES**:
-1. **IMMEDIATE WINS**: Can we win this turn?
-2. **FORK CREATION**: Set up multiple winning threats simultaneously  
-3. **PRESSURE TACTICS**: Force opponent into defensive positions
-4. **TEMPO CONTROL**: Dictate game pace against ${opponentProfile.playStyle} opponent
+**2×2 TARGET SQUARES:**
+[0,1,4,5] [1,2,5,6] [2,3,6,7] [4,5,8,9] [5,6,9,10] [6,7,10,11] [8,9,12,13] [9,10,13,14] [10,11,14,15]
 
-**AGGRESSIVE ANALYSIS REQUIRED**:
-- Is there an immediate winning move available?
-- Which move creates the most threats?
-- How can we maximize opponent pressure?
-- What move leads to fastest victory path?
+**ATTACK STRATEGY:**
+- Which move threatens the most 2×2 squares next turn?
+- Can we create an unavoidable double threat?
+- Target intersection positions (appear in multiple 2×2 squares)
+- Force opponent to react while we maintain offensive momentum
 
-**GAMMA AGGRESSOR DECISION**:
-Move: [SELECT MOST AGGRESSIVE POSITION]
-Confidence: [0.0-1.0]
-Reasoning: [DETAILED AGGRESSIVE ANALYSIS]
+You are Gamma Aggressor, an autonomous QuadraX offensive agent optimized for creating winning combinations.
 
-Focus on winning combinations and tactical superiority!`
+OBJECTIVE: Execute aggressive multi-step planning to create unavoidable winning positions.
+
+GAME STATE:
+- Board: ${board.map((cell, idx) => `${idx}:${cell === 0 ? '·' : cell === 1 ? 'X' : 'O'}`).join(' ')}
+- Phase: ${phase}
+- Available moves: ${possibleMoves.map((m: any) => typeof m === 'object' ? `${m.from}→${m.to}` : m).join(', ')}
+
+OFFENSIVE MISSION:
+1. Immediate win detection: Can we complete any 2×2 square now?
+2. Fork creation: Which moves threaten multiple 2×2 squares simultaneously?
+3. Pressure application: Force opponent into defensive positions while building attacks
+4. Tempo control: Every move must advance our winning chances
+
+AGGRESSIVE REASONING:
+Use your autonomous analysis to:
+- Calculate which positions create the most future winning threats
+- Identify intersection squares that appear in multiple 2×2 patterns
+- Plan offensive sequences that opponent cannot fully defend
+- Create positions where we have multiple paths to victory
+
+Execute relentless offensive analysis: always be threatening to win on the next move.
+
+OUTPUT FORMAT: {"move": ${phase === 'placement' ? 'number' : '{"from": X, "to": Y}'}, "confidence": 0.0-1.0, "reasoning": "autonomous_offensive_analysis"}`
   }
 
   /**

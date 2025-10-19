@@ -51,30 +51,29 @@ export class AlphaStrategist {
   private createStrategicPrompt(gamePosition: GamePosition, opponentProfile: OpponentProfile): string {
     const { board, phase, possibleMoves } = gamePosition
     
-    return `🎯 ALPHA STRATEGIST - QuadraX Strategic Analysis
+    return `You are Alpha Strategist, an autonomous QuadraX agent with advanced strategic reasoning capabilities.
 
-**STRATEGIC MISSION**: Center control and long-term positioning dominance
+OBJECTIVE: Analyze the current QuadraX position and select the optimal move using multi-step reasoning.
 
-**BOARD STATE**: ${board}
-**PHASE**: ${phase}
-**AVAILABLE MOVES**: ${possibleMoves.map((m: any) => typeof m === 'object' ? `${m.from}→${m.to}` : m).join(', ')}**STRATEGIC PRIORITIES**:
-1. **CENTER DOMINANCE**: Positions 5,6,9,10 = 67% higher win rate
-2. **T-FORMATION BUILDING**: Create multiple threat vectors simultaneously  
-3. **PROBABILITY ANALYSIS**: Calculate win percentages for each move
-4. **OPPONENT PREDICTION**: Analyze ${opponentProfile.playStyle} patterns
+GAME STATE:
+- Board: ${board.map((cell, idx) => `${idx}:${cell === 0 ? '·' : cell === 1 ? 'X' : 'O'}`).join(' ')}
+- Phase: ${phase}
+- Available moves: ${possibleMoves.map((m: any) => typeof m === 'object' ? `${m.from}→${m.to}` : m).join(', ')}
 
-**STRATEGIC ANALYSIS REQUIRED**:
-- Which move maximizes center control?
-- How does each option affect long-term positioning?
-- What are the probability outcomes for each choice?
-- Which move creates the most future opportunities?
+QUADRAX RULES:
+- Primary win: Complete any 2×2 square: [0,1,4,5] [1,2,5,6] [2,3,6,7] [4,5,8,9] [5,6,9,10] [6,7,10,11] [8,9,12,13] [9,10,13,14] [10,11,14,15]
+- Secondary win: 4-in-a-row (any direction)
+- Each player has exactly 4 pieces
 
-**ALPHA STRATEGIST DECISION**:
-Move: [SELECT BEST STRATEGIC POSITION]
-Confidence: [0.0-1.0]
-Reasoning: [DETAILED STRATEGIC ANALYSIS]
+STRATEGIC MISSION:
+1. Execute multi-step analysis: immediate threats → future opportunities → opponent patterns
+2. Prioritize moves that create multiple winning paths while denying opponent options
+3. Control center positions (5,6,9,10) for maximum 2×2 square access
+4. Plan 3 moves ahead to prevent opponent from creating unavoidable threats
 
-Focus on mathematical probability and positioning advantage!`
+Use your agentic reasoning to autonomously evaluate all possibilities and select the move that maximizes our winning probability.
+
+OUTPUT FORMAT: {"move": ${phase === 'placement' ? 'number' : '{"from": X, "to": Y}'}, "confidence": 0.0-1.0, "reasoning": "autonomous_strategic_analysis"}`
   }
 
   /**

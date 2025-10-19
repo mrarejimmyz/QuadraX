@@ -5,6 +5,60 @@ import type { GamePosition, ASIResponse } from '../agents/asi-alliance/types'
 import { ollamaService } from './ollamaService'
 
 /**
+ * Call ASI:One API with proper agentic reasoning configuration
+ */
+async function callASIAllianceAgentic(prompt: string, agentType: string): Promise<string> {
+  const apiKey = process.env.NEXT_PUBLIC_ASI_API_KEY || process.env.ASI_API_KEY
+  
+  if (!apiKey || apiKey.length < 20 || !apiKey.startsWith('sk_')) {
+    throw new Error('ASI:One API Key Required')
+  }
+
+  console.log(`🤖 ASI:One Agentic Call - ${agentType.toUpperCase()} Agent`)
+  
+  const response = await fetch('https://api.asi1.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'asi1-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an autonomous QuadraX agent with advanced agentic reasoning. Use multi-step analysis, contextual memory, and goal-driven decision making. Think autonomously and provide precise JSON responses.`
+        },
+        {
+          role: 'user', 
+          content: prompt
+        }
+      ],
+      max_tokens: 800,
+      temperature: 0.7,
+      // Enable agentic features
+      stream: false
+    })
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`ASI:One API Error: ${response.status} - ${errorText}`)
+  }
+
+  const data = await response.json()
+  console.log('🔍 DEBUG: ASI API Response Data:', JSON.stringify(data, null, 2))
+  
+  if (data.choices && data.choices.length > 0) {
+    const content = data.choices[0].message.content
+    console.log('✅ ASI API Success Response:', content)
+    return content
+  } else {
+    throw new Error('Invalid ASI API response structure')
+  }
+}
+
+/**
  * Call ASI Alliance API with Ollama fallback on failure
  */
 export async function callASIAllianceWithFallback(
@@ -13,9 +67,9 @@ export async function callASIAllianceWithFallback(
   gamePosition?: { board: number[], phase: 'placement' | 'movement', currentPlayer: 1 | 2, availableMoves?: any[] }
 ): Promise<string> {
   try {
-    // Try ASI:One API first
-    console.log('🌐 Attempting ASI:One API...')
-    return await callASIAlliance(prompt)
+    // Try ASI:One API with agentic reasoning
+    console.log('🤖 Calling ASI:One with agentic reasoning...')
+    return await callASIAllianceAgentic(prompt, agentType)
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     console.log(`❌ ASI:One API failed: ${errorMessage}`)
@@ -155,44 +209,113 @@ Response: ${errorText}
 export function parseASIResponse(response: string, gamePosition: any): ASIResponse {
   console.log('🔍 Parsing ASI Alliance response:', response)
   
-  // Extract move from response
+  // Default values
   let move: number | { from: number; to: number } = gamePosition.possibleMoves?.[0] // First valid option
   let confidence = 0.8
   let reasoning = response.slice(0, 200)
+  let tacticalAnalysis = undefined
 
-  // Parse placement moves (single numbers)
-  if (gamePosition.phase === 'placement') {
-    const moveMatches = response.match(/(?:move|position|place)[\s:]*(\d+)/i)
-    if (moveMatches) {
-      const parsedMove = parseInt(moveMatches[1])
-      if (!isNaN(parsedMove) && parsedMove >= 0 && parsedMove <= 15) {
-        move = parsedMove
+  try {
+    // Try to parse JSON response first
+    const jsonMatch = response.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0])
+      
+      // Validate and extract move
+      if (parsed.move !== undefined) {
+        if (gamePosition.phase === 'placement') {
+          const parsedMove = typeof parsed.move === 'number' ? parsed.move : parseInt(parsed.move)
+          // CRITICAL: Validate move is available
+          if (!isNaN(parsedMove) && gamePosition.possibleMoves?.includes(parsedMove)) {
+            move = parsedMove
+            console.log(`✅ Valid move selected: ${parsedMove}`)
+          } else {
+            console.warn(`⚠️ Invalid move ${parsedMove}, available: [${gamePosition.possibleMoves?.join(', ')}]`)
+            console.log(`🎲 Board: ${gamePosition.board.map((c: number, i: number) => `${i}:${c === 0 ? '·' : c === 1 ? 'X' : 'O'}`).join(' ')}`)
+            // Find best alternative from available moves (prefer center positions)
+            const centerMoves = [5, 6, 9, 10].filter(m => gamePosition.possibleMoves?.includes(m))
+            const selectedFallback = centerMoves[0] || gamePosition.possibleMoves?.[0]
+            console.log(`🔄 Using fallback move: ${selectedFallback}`)
+            move = selectedFallback
+            reasoning = `Fallback selection: ${selectedFallback} (AI suggested ${parsedMove} but position occupied)`
+          }
+        } else if (gamePosition.phase === 'movement') {
+          if (typeof parsed.move === 'object' && parsed.move.from !== undefined && parsed.move.to !== undefined) {
+            const from = parseInt(parsed.move.from)
+            const to = parseInt(parsed.move.to)
+            // Validate movement is available
+            const validMove = gamePosition.possibleMoves?.find((m: any) => 
+              m.from === from && m.to === to
+            )
+            if (validMove) {
+              move = { from, to }
+            } else {
+              console.warn(`⚠️ Invalid movement ${from}→${to}, using first available`)
+              move = gamePosition.possibleMoves?.[0]
+            }
+          }
+        }
+      }
+      
+      // Extract other fields
+      if (parsed.confidence !== undefined) {
+        confidence = Math.min(1.0, Math.max(0.0, parseFloat(parsed.confidence)))
+      }
+      
+      if (parsed.reasoning) {
+        reasoning = parsed.reasoning
+      }
+      
+      if (parsed.tacticalAnalysis) {
+        tacticalAnalysis = parsed.tacticalAnalysis
+      }
+      
+    } else {
+      // Fallback to regex parsing for non-JSON responses
+      console.log('📄 Non-JSON response, using regex parsing')
+      
+      // Parse placement moves (single numbers)
+      if (gamePosition.phase === 'placement') {
+        const moveMatches = response.match(/(?:move|position|place)[\s:]*(\d+)/i)
+        if (moveMatches) {
+          const parsedMove = parseInt(moveMatches[1])
+          if (!isNaN(parsedMove) && gamePosition.possibleMoves?.includes(parsedMove)) {
+            move = parsedMove
+          }
+        }
+      }
+
+      // Parse movement moves (from→to format)
+      if (gamePosition.phase === 'movement') {
+        const movementMatches = response.match(/(\d+)\s*(?:→|->|to)\s*(\d+)/i)
+        if (movementMatches) {
+          const from = parseInt(movementMatches[1])
+          const to = parseInt(movementMatches[2])
+          const validMove = gamePosition.possibleMoves?.find((m: any) => 
+            m.from === from && m.to === to
+          )
+          if (validMove) {
+            move = { from, to }
+          }
+        }
+      }
+
+      // Extract confidence level
+      const confidenceMatch = response.match(/confidence[:\s]*([0-9.]+)/i)
+      if (confidenceMatch) {
+        confidence = Math.min(1.0, Math.max(0.0, parseFloat(confidenceMatch[1])))
+      }
+
+      // Extract reasoning
+      const reasoningMatch = response.match(/reasoning[:\s]*(.+?)(?:\n|$)/i)
+      if (reasoningMatch) {
+        reasoning = reasoningMatch[1].trim()
       }
     }
-  }
-
-  // Parse movement moves (from→to format)
-  if (gamePosition.phase === 'movement') {
-    const movementMatches = response.match(/(\d+)\s*(?:→|->|to)\s*(\d+)/i)
-    if (movementMatches) {
-      const from = parseInt(movementMatches[1])
-      const to = parseInt(movementMatches[2])
-      if (!isNaN(from) && !isNaN(to) && from >= 0 && from <= 15 && to >= 0 && to <= 15) {
-        move = { from, to }
-      }
-    }
-  }
-
-  // Extract confidence level
-  const confidenceMatch = response.match(/confidence[:\s]*([0-9.]+)/i)
-  if (confidenceMatch) {
-    confidence = Math.min(1.0, Math.max(0.0, parseFloat(confidenceMatch[1])))
-  }
-
-  // Extract reasoning
-  const reasoningMatch = response.match(/reasoning[:\s]*(.+?)(?:\n|$)/i)
-  if (reasoningMatch) {
-    reasoning = reasoningMatch[1].trim()
+  } catch (parseError) {
+    console.error('❌ Response parsing error:', parseError)
+    // Use fallback move
+    console.log('🔄 Using fallback move selection')
   }
 
   return {

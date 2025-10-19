@@ -1271,6 +1271,92 @@ export type {
   AgentManifest 
 };
 
+/**
+ * Call ASI Alliance API with fallback for QuadraX agents
+ */
+export async function callASIAllianceWithFallback(
+  prompt: string, 
+  agentType: string, 
+  gameContext: any
+): Promise<string> {
+  const apiKey = process.env.NEXT_PUBLIC_ASI_API_KEY || process.env.ASI_API_KEY
+  
+  if (!apiKey) {
+    throw new Error('ASI API key not found')
+  }
+
+  try {
+    const response = await fetch('https://api.asi1.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'asi1-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a QuadraX specialist agent (${agentType}). CRITICAL: QuadraX is 4x4 tic-tac-toe where 2x2 SQUARES are the PRIMARY win condition, not lines. Each player has only 4 pieces. Game has placement phase then movement phase.`
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 200,
+        temperature: 0.3
+      })
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      return data.choices?.[0]?.message?.content || 'No response'
+    } else {
+      throw new Error(`ASI API error: ${response.status}`)
+    }
+  } catch (error) {
+    console.error(`ASI Alliance error for ${agentType}:`, error)
+    throw error
+  }
+}
+
+/**
+ * Parse ASI response for QuadraX agents
+ */
+export function parseASIResponse(response: string, gamePosition: any): any {
+  try {
+    // Try to extract JSON from response
+    const jsonMatch = response.match(/\{[^}]*\}/)
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0])
+      return {
+        move: parsed.move,
+        confidence: parsed.confidence || 0.8,
+        reasoning: parsed.reasoning || response,
+        tacticalAnalysis: parsed.reasoning || 'ASI Alliance tactical analysis'
+      }
+    }
+  } catch (e) {
+    // Fallback parsing
+    console.log('JSON parsing failed, using text analysis')
+  }
+
+  // Fallback: extract move from text
+  const moves = gamePosition.possibleMoves
+  if (moves && moves.length > 0) {
+    // Simple fallback - return first available move
+    return {
+      move: moves[0],
+      confidence: 0.6,
+      reasoning: response,
+      tacticalAnalysis: 'Fallback move selection'
+    }
+  }
+
+  throw new Error('Could not parse ASI response')
+}
+
 // Default configuration for QuadraX
 export const defaultASIConfig: Partial<ASIConfig> = {
   baseUrl: 'https://api.asi1.ai/v1',

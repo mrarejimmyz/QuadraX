@@ -6,7 +6,6 @@ import { NextRequest, NextResponse } from 'next/server'
 // Import modular ASI Alliance system
 import { ASIAllianceFactory } from '@/lib/agents/asi-alliance'
 import { QuadraXReferee } from '@/lib/referee/quadraXReferee'
-import { checkWin, findWinningMove } from '@/lib/utils/quadraX/gameLogic'
 import { scoreMove } from '@/lib/utils/quadraX/moveScoring'
 import type { GamePosition, AgentDecision, OpponentProfile } from '@/lib/agents/asi-alliance/types'
 
@@ -90,7 +89,8 @@ export async function POST(request: NextRequest) {
     }
     
     console.log(`🎯 Game State: ${gameState.phase} phase, Player ${gameState.currentPlayer}`)
-    console.log(`📊 Available moves: ${gamePosition.possibleMoves.length}`)
+    console.log(`🎲 Board State: ${gameState.board.map((c, i) => `${i}:${c === 0 ? '·' : c === 1 ? 'X' : 'O'}`).join(' ')}`)
+    console.log(`📊 Available moves: ${gamePosition.possibleMoves.length} - ${gamePosition.possibleMoves.join(', ')}`)
     
     // Get decision from ASI Alliance system
     const decision = await getASIAllianceDecision(gamePosition)
@@ -181,6 +181,11 @@ async function getASIAllianceDecision(gamePosition: GamePosition): Promise<Exten
     throw new Error('All ASI Alliance agents failed to respond')
   }
   
+  console.log('🔍 Raw agent decisions before scoring:')
+  agentDecisions.forEach(decision => {
+    console.log(`  ${decision.agent}: move ${decision.move}, confidence ${decision.confidence}`)
+  })
+  
   // Score and validate all decisions through referee
   const scoredDecisions = await Promise.all(
     agentDecisions.map(async (decision) => {
@@ -191,6 +196,8 @@ async function getASIAllianceDecision(gamePosition: GamePosition): Promise<Exten
         gamePosition.phase
       )
       
+      console.log(`🎯 Scoring ${decision.agent}: move ${decision.move} = ${score} points`)
+      
       return {
         ...decision,
         score: score
@@ -199,14 +206,22 @@ async function getASIAllianceDecision(gamePosition: GamePosition): Promise<Exten
   )
   
   // Select best decision based on score and confidence
+  console.log('🔍 All scored decisions:')
+  scoredDecisions.forEach(decision => {
+    const weight = (decision.score || 0) * decision.confidence
+    console.log(`  ${decision.agent}: move ${decision.move}, score ${decision.score}, confidence ${decision.confidence}, weight ${weight}`)
+  })
+  
   const bestDecision = scoredDecisions.reduce((best, current) => {
     const bestWeight = (best.score || 0) * best.confidence
     const currentWeight = (current.score || 0) * current.confidence
+    console.log(`🔀 Comparing ${current.agent} (${currentWeight}) vs ${best.agent} (${bestWeight})`)
     return currentWeight > bestWeight ? current : best
   })
   
   console.log('🏆 ASI Alliance Final Decision:', {
     agent: bestDecision.agent,
+    move: bestDecision.move,
     score: bestDecision.score,
     confidence: bestDecision.confidence
   })
