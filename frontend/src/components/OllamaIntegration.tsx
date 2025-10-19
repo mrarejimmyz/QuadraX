@@ -1,8 +1,14 @@
 ﻿'use client'
 
 import React from 'react'
-import { useEnhancedHederaAgents, OllamaStatusInterface } from '@/lib/agents/enhancedHederaAgentKit'
-import { QuadraXAgent } from '@/lib/agents/quadraXAgent'
+
+type OllamaStatusInterface = {
+  connected: boolean
+  isOnline: boolean
+  model: string
+  version: string
+  uptime: number
+}
 
 export function OllamaStatusPanel({ 
   status, 
@@ -36,13 +42,16 @@ export function OllamaStatusPanel({
 }
 
 export function EnhancedAINegotiationPanel() {
-  const { agents, ollamaStatus, initializeAgents } = useEnhancedHederaAgents()
   const [selectedAgent1, setSelectedAgent1] = React.useState(0)
   const [selectedAgent2, setSelectedAgent2] = React.useState(1)
+  
+  // Placeholder data for demo
+  const agents = ['AlphaStrategist', 'BetaDefender', 'GammaAggressor', 'DeltaAdaptive']
+  const ollamaStatus = { connected: false, isOnline: false, model: 'llama3.2', version: '1.0', uptime: 0 }
 
   return (
     <div className="space-y-6">
-      <OllamaStatusPanel status={ollamaStatus} onRefresh={initializeAgents} />
+      <OllamaStatusPanel status={ollamaStatus} onRefresh={() => {}} />
       
       <div className="glass rounded-xl p-6">
         <h3 className="text-lg font-bold mb-4">AI Agents</h3>
@@ -50,14 +59,14 @@ export function EnhancedAINegotiationPanel() {
           <div className="grid grid-cols-2 gap-4">
             <select value={selectedAgent1} onChange={(e) => setSelectedAgent1(Number(e.target.value))}
                     className="p-3 rounded-lg bg-white/10">
-              {agents.map((agent: QuadraXAgent, i: number) => (
-                <option key={i} value={i}>{agent.name}</option>
+              {agents.map((agent: string, i: number) => (
+                <option key={i} value={i}>{agent}</option>
               ))}
             </select>
             <select value={selectedAgent2} onChange={(e) => setSelectedAgent2(Number(e.target.value))}
                     className="p-3 rounded-lg bg-white/10">
-              {agents.map((agent: QuadraXAgent, i: number) => (
-                <option key={i} value={i}>{agent.name}</option>
+              {agents.map((agent: string, i: number) => (
+                <option key={i} value={i}>{agent}</option>
               ))}
             </select>
           </div>
@@ -68,13 +77,13 @@ export function EnhancedAINegotiationPanel() {
 }
 
 export default function OllamaIntegration() {
-  const { agents, ollamaStatus, initializeAgents } = useEnhancedHederaAgents()
+  const ollamaStatus = { connected: false, isOnline: false, model: 'llama3.2', version: '1.0', uptime: 0 }
   
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-4xl font-bold mb-8">QuadraX AI Integration</h1>
-        <OllamaStatusPanel status={ollamaStatus} onRefresh={initializeAgents} />
+        <OllamaStatusPanel status={ollamaStatus} onRefresh={() => {}} />
       </div>
     </div>
   )

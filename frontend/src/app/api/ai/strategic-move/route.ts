@@ -1,562 +1,332 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+// Enhanced ASI Alliance Route - Using Modular Architecture
+// Complete 4-agent system with referee validation and proper QuadraX rules
 
-// Strategic AI Move API using ASI Alliance Agents
+import { NextRequest, NextResponse } from 'next/server'
+
+// Import modular ASI Alliance system
+import { ASIAllianceFactory } from '@/lib/agents/asi-alliance'
+import { QuadraXReferee } from '@/lib/referee/quadraXReferee'
+import { checkWin, findWinningMove } from '@/lib/utils/quadraX/gameLogic'
+import { scoreMove } from '@/lib/utils/quadraX/moveScoring'
+import type { GamePosition, AgentDecision, OpponentProfile } from '@/lib/agents/asi-alliance/types'
+
+interface APIGameState {
+  board: number[]
+  phase: 'placement' | 'movement'
+  currentPlayer: number
+  placedPieces?: { [player: number]: number }
+}
+
+// Extended AgentDecision with score property
+interface ExtendedAgentDecision extends AgentDecision {
+  score?: number
+}
+
+/**
+ * Get possible moves for current game state
+ */
+function getPossibleMoves(board: number[], phase: 'placement' | 'movement', currentPlayer: number): (number | { from: number; to: number })[] {
+  if (phase === 'placement') {
+    return board.map((cell, index) => cell === 0 ? index : null).filter(pos => pos !== null) as number[]
+  } else {
+    const playerPieces = board.map((cell, index) => cell === currentPlayer ? index : -1).filter(pos => pos !== -1)
+    const emptySpaces = board.map((cell, index) => cell === 0 ? index : -1).filter(pos => pos !== -1)
+    
+    const moves: { from: number, to: number }[] = []
+    for (const piece of playerPieces) {
+      for (const empty of emptySpaces) {
+        if (isAdjacent(piece, empty)) {
+          moves.push({ from: piece, to: empty })
+        }
+      }
+    }
+    return moves
+  }
+}
+
+/**
+ * Check if two positions are adjacent (including diagonally)
+ */
+function isAdjacent(pos1: number, pos2: number): boolean {
+  const row1 = Math.floor(pos1 / 4), col1 = pos1 % 4
+  const row2 = Math.floor(pos2 / 4), col2 = pos2 % 4
+  
+  return Math.abs(row1 - row2) <= 1 && Math.abs(col1 - col2) <= 1 && pos1 !== pos2
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { boardState, requestType, difficulty } = await request.json()
+    console.log('🧠 Enhanced ASI Alliance API - Modular System Activated')
     
-    // Analyze board state with AI agents
-    const aiResponse = await analyzeWithASIAgents(boardState, requestType, difficulty)
+    const body = await request.json()
+    console.log('📥 Request received:', { 
+      board: body.board?.slice(0, 5) + '...', 
+      phase: body.phase, 
+      currentPlayer: body.currentPlayer 
+    })
     
-    return NextResponse.json(aiResponse)
+    // Parse incoming request with multiple format support
+    const gameState: APIGameState = {
+      board: body.board || body.gamePosition?.board || body.boardState?.board,
+      phase: body.phase || body.gamePosition?.phase || body.boardState?.phase || 'placement',
+      currentPlayer: body.currentPlayer || body.gamePosition?.currentPlayer || body.boardState?.currentPlayer || 2,
+      placedPieces: body.placedPieces || { 1: 0, 2: 0 }
+    }
+    
+    // Validate game state
+    if (!gameState.board || !Array.isArray(gameState.board) || gameState.board.length !== 16) {
+      throw new Error('Invalid board state - must be 16-position array')
+    }
+    
+    // Convert to GamePosition format for agents
+    const gamePosition: GamePosition = {
+      board: gameState.board,
+      phase: gameState.phase,
+      player1Pieces: gameState.board.filter(cell => cell === 1).length,
+      player2Pieces: gameState.board.filter(cell => cell === 2).length,
+      possibleMoves: getPossibleMoves(gameState.board, gameState.phase, gameState.currentPlayer),
+      moveHistory: [],
+      currentPlayer: gameState.currentPlayer as (1 | 2)
+    }
+    
+    console.log(`🎯 Game State: ${gameState.phase} phase, Player ${gameState.currentPlayer}`)
+    console.log(`📊 Available moves: ${gamePosition.possibleMoves.length}`)
+    
+    // Get decision from ASI Alliance system
+    const decision = await getASIAllianceDecision(gamePosition)
+    
+    // Format response for frontend compatibility  
+    const response = {
+      move: gameState.phase === 'placement' ? decision.move : decision.move,
+      reasoning: decision.reasoning,
+      confidence: decision.confidence,
+      agent: decision.agent,
+      score: decision.score || 0,
+      phase: gameState.phase,
+      refereeValidated: true,
+      asiAlliance: true,
+      modular: true
+    }
+    
+    console.log('✅ ASI Alliance Decision:', {
+      move: response.move,
+      agent: response.agent,
+      confidence: response.confidence
+    })
+    
+    return NextResponse.json(response)
+    
   } catch (error) {
-    console.error('AI strategic move error:', error)
-    return NextResponse.json({ error: 'AI analysis failed' }, { status: 500 })
+    console.error('❌ Enhanced ASI Alliance Error:', error)
+    return NextResponse.json({ 
+      error: `ASI Alliance error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      fallback: true
+    }, { status: 500 })
   }
 }
 
-async function analyzeWithASIAgents(boardState: any, requestType: string, difficulty: string) {
-  console.log('🤖 Activating Local QuadraX Strategic AI (ASI services offline)')
-  console.log('🎯 Board analysis:', { requestType, difficulty, boardState })
+/**
+ * Main ASI Alliance decision system using modular architecture
+ */
+async function getASIAllianceDecision(gamePosition: GamePosition): Promise<ExtendedAgentDecision> {
+  console.log('🤖 ASI Alliance: Activating 4-agent consultation system...')
   
-  // Skip ASI agent integration due to connectivity issues
-  // Use pure local strategic intelligence instead
+  // Initialize referee system
+  const referee = new QuadraXReferee()
   
-  if (requestType === 'ruthless-optimal-move') {
-    console.log('📍 Processing placement request...')
-    const placement = getBestPlacement(boardState.board, boardState.availableMoves)
-    console.log('✅ Strategic placement decision:', placement)
-    return placement
-  } 
+  // Check for guaranteed winning moves first
+  const winningMove = await referee.findWinningMove(
+    gamePosition.board,
+    gamePosition.currentPlayer,
+    gamePosition.possibleMoves,
+    gamePosition.phase
+  )
   
-  if (requestType === 'optimal-movement') {
-    console.log('🔄 Processing movement request...')
-    const movement = getBestMovement(boardState.board, boardState.possibleMoves)
-    console.log('✅ Strategic movement decision:', movement)
-    return movement
-  }
-
-  // Pure strategic intelligence for any other request types
-  return executeStrategicIntelligence(boardState, requestType)
-}
-
-function buildStrategicPrompt(boardState: any, requestType: string, difficulty: string) {
-  const { board, phase, availableMoves, possibleMoves } = boardState
-  
-  let prompt = `You are a ruthless strategic AI playing 4x4 QuadraX Tic-Tac-Toe. 
-  
-CURRENT BOARD (16 positions, 0=empty, 1=player X, 2=AI O):
-${formatBoard(board)}
-
-RULES:
-- Win via: 4-in-row (horizontal/vertical/diagonal) OR 2x2 square block
-- Each player has exactly 4 pieces
-- Current phase: ${phase}
-
-`
-
-  if (requestType === 'ruthless-optimal-move') {
-    prompt += `PLACEMENT PHASE - Choose optimal position for AI piece (O):
-Available positions: ${availableMoves.join(', ')}
-
-Analyze:
-1. Can I win immediately? 
-2. Must I block player from winning?
-3. What creates maximum strategic advantage?
-
-Respond with ONLY the position number (0-15) for optimal move.`
-  } else if (requestType === 'optimal-movement') {
-    prompt += `MOVEMENT PHASE - Choose best piece movement:
-Possible moves: ${possibleMoves?.map((m: any) => `${m.from}→${m.to}`).join(', ') || 'analyzing...'}
-
-Analyze:
-1. Can I win this turn?
-2. Must I block an immediate player threat?
-3. What move creates the strongest position?
-
-Respond with format: "from:X to:Y" where X,Y are positions 0-15.`
-  }
-
-  prompt += `\n\nBe RUTHLESS. Always prioritize winning over blocking. Think 2-3 moves ahead.`
-  
-  return prompt
-}
-
-function formatBoard(board: number[]) {
-  let result = ''
-  for (let i = 0; i < 16; i += 4) {
-    result += `${board.slice(i, i + 4).map(cell => 
-      cell === 0 ? '_' : cell === 1 ? 'X' : 'O'
-    ).join(' ')}\n`
-  }
-  return result
-}
-
-function parseAIResponse(aiResponse: string, boardState: any, requestType: string) {
-  if (requestType === 'ruthless-optimal-move') {
-    // Extract position number
-    const moveMatch = aiResponse.match(/\b(\d{1,2})\b/)
-    if (moveMatch) {
-      const move = parseInt(moveMatch[1])
-      if (move >= 0 && move <= 15 && boardState.availableMoves?.includes(move)) {
-        return { move }
-      }
-    }
-  } else if (requestType === 'optimal-movement') {
-    // Extract movement pattern
-    const movementMatch = aiResponse.match(/from:(\d{1,2})\s+to:(\d{1,2})/i)
-    if (movementMatch) {
-      const from = parseInt(movementMatch[1])
-      const to = parseInt(movementMatch[2])
-      if (from >= 0 && from <= 15 && to >= 0 && to <= 15) {
-        return { movement: { from, to } }
-      }
+  if (winningMove) {
+    console.log('🏆 REFEREE: Guaranteed winning move found!')
+    return {
+      move: winningMove.move,
+      reasoning: `WINNING MOVE: ${winningMove.reasoning}`,
+      confidence: 1.0,
+      agent: 'QuadraXReferee',
+      type: 'referee',
+      score: 1000
     }
   }
-
-  // Pure strategic intelligence - optimal positioning
-  return executeStrategicIntelligence(boardState, requestType)
-}
-
-// Pure Strategic Intelligence Engine - No Fallbacks
-function executeStrategicIntelligence(boardState: any, requestType: string) {
-  const { board, availableMoves, possibleMoves } = boardState
   
-  if (requestType === 'ruthless-optimal-move') {
-    return getBestPlacement(board, availableMoves)
+  // Check for critical blocks (opponent about to win)
+  const criticalBlock = await referee.findBlockingMove(
+    gamePosition.board,
+    gamePosition.currentPlayer,
+    gamePosition.possibleMoves,
+    gamePosition.phase
+  )
+  
+  if (criticalBlock) {
+    console.log('🛡️ REFEREE: Critical block required!')
+    return {
+      move: criticalBlock.move,
+      reasoning: `CRITICAL BLOCK: ${criticalBlock.reasoning}`,
+      confidence: 0.95,
+      agent: 'QuadraXReferee',
+      type: 'referee',
+      score: 900
+    }
   }
   
-  if (requestType === 'optimal-movement' && possibleMoves?.length > 0) {
-    return getBestMovement(board, possibleMoves)
+  // Consult all 4 agents for strategic analysis
+  const agentDecisions = await consultAllAgents(gamePosition)
+  
+  if (agentDecisions.length === 0) {
+    throw new Error('All ASI Alliance agents failed to respond')
   }
   
-  // Pure intelligence - optimal first available position
-  return { move: availableMoves?.[0] || 0 }
+  // Score and validate all decisions through referee
+  const scoredDecisions = await Promise.all(
+    agentDecisions.map(async (decision) => {
+      const score = await scoreMove(
+        gamePosition.board,
+        decision.move,
+        gamePosition.currentPlayer,
+        gamePosition.phase
+      )
+      
+      return {
+        ...decision,
+        score: score
+      }
+    })
+  )
+  
+  // Select best decision based on score and confidence
+  const bestDecision = scoredDecisions.reduce((best, current) => {
+    const bestWeight = (best.score || 0) * best.confidence
+    const currentWeight = (current.score || 0) * current.confidence
+    return currentWeight > bestWeight ? current : best
+  })
+  
+  console.log('🏆 ASI Alliance Final Decision:', {
+    agent: bestDecision.agent,
+    score: bestDecision.score,
+    confidence: bestDecision.confidence
+  })
+  
+  return bestDecision
 }
 
-// Advanced threat assessment for strategic positioning
-function determineThreatLevel(board: number[], player1Count: number, player2Count: number): 'low' | 'medium' | 'high' | 'critical' {
-  // Check for immediate win threats (3-in-a-row scenarios)
-  const patterns = [
-    [0,1,2,3], [4,5,6,7], [8,9,10,11], [12,13,14,15], // Horizontal
-    [0,4,8,12], [1,5,9,13], [2,6,10,14], [3,7,11,15], // Vertical  
-    [0,5,10,15], [3,6,9,12], // Diagonal
-    [0,1,4,5], [1,2,5,6], [2,3,6,7], [4,5,8,9], [5,6,9,10], [6,7,10,11], [8,9,12,13], [9,10,13,14], [10,11,14,15] // 2x2
+/**
+ * Consult all 4 ASI Alliance agents
+ */
+async function consultAllAgents(gamePosition: GamePosition): Promise<AgentDecision[]> {
+  console.log('👥 Consulting all ASI Alliance agents...')
+  
+  const agents = await ASIAllianceFactory.createAllAgents()
+  const opponentProfile: OpponentProfile = {
+    playStyle: 'strategic',
+    skillLevel: 'advanced',
+    preferredPositions: [5, 6, 9, 10],
+    gameHistory: [],
+    winRate: 0.8
+  }
+  
+  const decisions: AgentDecision[] = []
+  
+  // Alpha Strategist - Strategic Analysis
+  try {
+    console.log('🧠 Consulting AlphaStrategist...')
+    const alphaDecision = await agents.alphaStrategist.selectQuadraXMove(
+      gamePosition,
+      opponentProfile,
+      30000 // 30 second timeout
+    )
+    decisions.push(alphaDecision)
+    console.log(`✅ AlphaStrategist decision: confidence ${alphaDecision.confidence}`)
+  } catch (error) {
+    console.log('⚠️ AlphaStrategist failed:', error)
+  }
+  
+  // Beta Defender - Defensive Analysis
+  try {
+    console.log('🛡️ Consulting BetaDefender...')
+    const betaDecision = await agents.betaDefender.selectQuadraXMove(
+      gamePosition,
+      opponentProfile,
+      30000
+    )
+    decisions.push(betaDecision)
+    console.log(`✅ BetaDefender decision: confidence ${betaDecision.confidence}`)
+  } catch (error) {
+    console.log('⚠️ BetaDefender failed:', error)
+  }
+  
+  // Gamma Aggressor - Aggressive Analysis
+  try {
+    console.log('⚔️ Consulting GammaAggressor...')
+    const gammaDecision = await agents.gammaAggressor.selectQuadraXMove(
+      gamePosition,
+      opponentProfile,
+      30000
+    )
+    decisions.push(gammaDecision)
+    console.log(`✅ GammaAggressor decision: confidence ${gammaDecision.confidence}`)
+  } catch (error) {
+    console.log('⚠️ GammaAggressor failed:', error)
+  }
+  
+  // Delta Adaptive - Adaptive Analysis
+  try {
+    console.log('🔄 Consulting DeltaAdaptive...')
+    const deltaDecision = await agents.deltaAdaptive.selectQuadraXMove(
+      gamePosition,
+      opponentProfile,
+      30000
+    )
+    decisions.push(deltaDecision)
+    console.log(`✅ DeltaAdaptive decision: confidence ${deltaDecision.confidence}`)
+  } catch (error) {
+    console.log('⚠️ DeltaAdaptive failed:', error)
+  }
+  
+  console.log(`🏁 Agent consultation complete: ${decisions.length}/4 agents responded`)
+  return decisions
+}
+
+/**
+ * Analyze threat level on the board
+ */
+function analyzeThreatLevel(board: number[], currentPlayer: number): 'low' | 'medium' | 'high' | 'critical' {
+  const opponent = currentPlayer === 1 ? 2 : 1
+  
+  // Check for immediate win threats (opponent needs 1 move to win)
+  const winPatterns = [
+    // 2x2 squares (primary threat)
+    [0,1,4,5], [1,2,5,6], [2,3,6,7], [4,5,8,9], 
+    [5,6,9,10], [6,7,10,11], [8,9,12,13], [9,10,13,14], [10,11,14,15],
+    // 4-in-a-row (secondary threat)  
+    [0,1,2,3], [4,5,6,7], [8,9,10,11], [12,13,14,15],
+    [0,4,8,12], [1,5,9,13], [2,6,10,14], [3,7,11,15],
+    [0,5,10,15], [3,6,9,12]
   ]
   
-  let maxThreat = 0
-  for (const pattern of patterns) {
-    const player1Pieces = pattern.filter(pos => board[pos] === 1).length
-    const player2Pieces = pattern.filter(pos => board[pos] === 2).length
+  for (const pattern of winPatterns) {
+    const opponentPieces = pattern.filter(pos => board[pos] === opponent).length
+    const emptySpaces = pattern.filter(pos => board[pos] === 0).length
     
-    if (player1Pieces === 3 && player2Pieces === 0) return 'critical' // Player near win
-    if (player2Pieces === 3 && player1Pieces === 0) return 'critical' // AI near win
-    if (player1Pieces === 2 && player2Pieces === 0) maxThreat = Math.max(maxThreat, 3)
-    if (player2Pieces === 2 && player1Pieces === 0) maxThreat = Math.max(maxThreat, 3)
+    if (opponentPieces === 3 && emptySpaces === 1) {
+      return 'critical' // Opponent wins next move
+    }
+    if (opponentPieces === 2 && emptySpaces === 2) {
+      return 'high' // Opponent has strong setup
+    }
   }
   
-  if (maxThreat >= 3) return 'high'
-  if (player1Count >= 3 || player2Count >= 3) return 'medium'
+  // Check our own opportunities
+  for (const pattern of winPatterns) {
+    const myPieces = pattern.filter(pos => board[pos] === currentPlayer).length
+    if (myPieces >= 2) {
+      return 'medium' // We have good opportunities
+    }
+  }
+  
   return 'low'
 }
-
-// Optimal piece selection for strategic movement
-function selectOptimalPieceForTarget(board: number[], aiPieces: number[], targetPosition: number): {from: number, to: number} {
-  let bestFrom = aiPieces[0]
-  let bestScore = -1000
-  
-  // Evaluate which piece movement creates the strongest position
-  for (const piece of aiPieces) {
-    const testBoard = [...board]
-    testBoard[piece] = 0
-    testBoard[targetPosition] = 2
-    
-    const score = evaluateBoard(testBoard, 2)
-    if (score > bestScore) {
-      bestScore = score
-      bestFrom = piece
-    }
-  }
-  
-  return { from: bestFrom, to: targetPosition }
-}
-
-// Optimized Multi-Threat Detection - Prevent T-patterns & Forks
-function detectAndBlockMultiThreat(board: number[], availableMoves: number[], player: number): number | null {
-  console.log('🔍 Multi-threat scan: T-patterns & forks')
-  
-  for (const move of availableMoves) {
-    // Simulate player move
-    board[move] = player
-    
-    // Count winning opportunities this creates
-    const threats = availableMoves
-      .filter(pos => pos !== move)
-      .filter(pos => {
-        board[pos] = player
-        const isWin = checkWin(board, player)
-        board[pos] = 0 // Restore
-        return isWin
-      })
-    
-    board[move] = 0 // Restore board
-    
-    // Block if creates 2+ threats (fork/T-pattern)
-    if (threats.length >= 2) {
-      console.log(`🚨 Fork detected! Move ${move} → ${threats.length} threats [${threats.join(',')}]`)
-      return move
-    }
-  }
-  
-  return null
-}
-
-// Multi-Threat Detection for Movement Phase
-function detectMovementMultiThreat(board: number[], possibleMoves: any[], playerPieces: number[]): any | null {
-  console.log('🔍 Scanning for movement-based multi-threat scenarios...')
-  
-  // For each possible player movement
-  for (const playerPiece of playerPieces) {
-    const emptySpaces = board.map((cell, index) => cell === 0 ? index : -1).filter(i => i !== -1)
-    
-    for (const targetPosition of emptySpaces) {
-      // Simulate player moving piece to target position
-      const testBoard = [...board]
-      testBoard[playerPiece] = 0
-      testBoard[targetPosition] = 1
-      
-      // Count how many immediate winning moves this creates for the player
-      let winningThreats = 0
-      const threatMoves: {from: number, to: number}[] = []
-      
-      // Check all remaining player pieces for winning moves
-      const remainingPlayerPieces = testBoard.map((cell, index) => cell === 1 ? index : -1).filter(i => i !== -1)
-      const newEmptySpaces = testBoard.map((cell, index) => cell === 0 ? index : -1).filter(i => i !== -1)
-      
-      for (const piece of remainingPlayerPieces) {
-        for (const empty of newEmptySpaces) {
-          const winTestBoard = [...testBoard]
-          winTestBoard[piece] = 0
-          winTestBoard[empty] = 1
-          
-          if (checkWin(winTestBoard, 1)) {
-            winningThreats++
-            threatMoves.push({from: piece, to: empty})
-          }
-        }
-      }
-      
-      // If player creates multiple threats, try to block the setup move
-      if (winningThreats >= 2) {
-        console.log(`🚨 MOVEMENT MULTI-THREAT! Player ${playerPiece}→${targetPosition} creates ${winningThreats} threats:`, threatMoves)
-        
-        // Find our move that can occupy the target position to prevent setup
-        for (const ourMove of possibleMoves) {
-          if (ourMove.to === targetPosition) {
-            console.log(`🛡️ Blocking setup by occupying position ${targetPosition}`)
-            return ourMove
-          }
-        }
-      }
-    }
-  }
-  
-  return null
-}
-
-// Elite QuadraX AI - Ruthless Placement Strategy
-function getBestPlacement(board: number[], availableMoves: number[]) {
-  console.log('🎯 AI Analyzing placement options:', availableMoves)
-  
-  // PRIORITY 1: Win immediately if possible
-  for (const move of availableMoves) {
-    const testBoard = [...board]
-    testBoard[move] = 2
-    if (checkWin(testBoard, 2)) {
-      console.log('🏆 AI WINNING MOVE FOUND:', move)
-      return { move }
-    }
-  }
-  
-  // PRIORITY 2: Block player from winning (including multi-threat scenarios)
-  
-  // First check for immediate wins to block
-  for (const move of availableMoves) {
-    const testBoard = [...board]
-    testBoard[move] = 1 // Test if player could win here
-    if (checkWin(testBoard, 1)) {
-      console.log('🛡️ AI BLOCKING PLAYER WIN at:', move)
-      return { move }
-    }
-  }
-  
-  // CRITICAL: Check for T-patterns and multi-threat setups
-  const multiThreatMove = detectAndBlockMultiThreat(board, availableMoves, 1)
-  if (multiThreatMove !== null) {
-    console.log('🚨 AI PREVENTING MULTI-THREAT SETUP at:', multiThreatMove)
-    return { move: multiThreatMove }
-  }
-  
-  // PRIORITY 3: Strategic positioning with deep analysis
-  let bestMove = availableMoves[0]
-  let bestScore = -1000
-  
-  for (const move of availableMoves) {
-    const score = evaluateQuadraXPosition(board, move, 2)
-    console.log(`📊 Position ${move} score:`, score)
-    if (score > bestScore) {
-      bestScore = score
-      bestMove = move
-    }
-  }
-  
-  console.log('🎯 AI Selected optimal move:', bestMove, 'with score:', bestScore)
-  return { move: bestMove }
-}
-
-// Elite QuadraX AI - Ruthless Movement Strategy
-function getBestMovement(board: number[], possibleMoves: any[]) {
-  console.log('🔄 AI Analyzing movement options:', possibleMoves.length, 'moves')
-  
-  // PRIORITY 1: Win immediately with movement
-  for (const move of possibleMoves) {
-    const testBoard = [...board]
-    testBoard[move.from] = 0
-    testBoard[move.to] = 2
-    if (checkWin(testBoard, 2)) {
-      console.log('🏆 AI WINNING MOVEMENT FOUND:', move)
-      return { movement: move }
-    }
-  }
-  
-  // PRIORITY 2: Block player from winning on their next move
-  const playerPieces = board.map((cell, index) => cell === 1 ? index : -1).filter(i => i !== -1)
-  
-  // First check immediate threats
-  for (const move of possibleMoves) {
-    const testBoard = [...board]
-    testBoard[move.from] = 0
-    testBoard[move.to] = 2
-    
-    // Check if any player piece can create immediate win after our move
-    const emptySpaces = testBoard.map((cell, index) => cell === 0 ? index : -1).filter(i => i !== -1)
-    for (const playerPiece of playerPieces) {
-      if (testBoard[playerPiece] === 1) { // Player piece still exists
-        for (const empty of emptySpaces) {
-          const playerTestBoard = [...testBoard]
-          playerTestBoard[playerPiece] = 0
-          playerTestBoard[empty] = 1
-          if (checkWin(playerTestBoard, 1)) {
-            // Player has immediate win threat, but check if we can block it
-            console.log(`⚠️ Player piece at ${playerPiece} can win by moving to ${empty}`)
-          }
-        }
-      }
-    }
-  }
-  
-  // CRITICAL: Check for movement-based multi-threat scenarios
-  const multiThreatBlockingMove = detectMovementMultiThreat(board, possibleMoves, playerPieces)
-  if (multiThreatBlockingMove !== null) {
-    console.log('🚨 AI PREVENTING MOVEMENT MULTI-THREAT with:', multiThreatBlockingMove)
-    return { movement: multiThreatBlockingMove }
-  }
-  
-  // Legacy blocking logic for single threats
-  for (const move of possibleMoves) {
-    const testBoard = [...board]
-    testBoard[move.from] = 0
-    testBoard[move.to] = 2
-    
-    // Check if this move blocks ALL player winning opportunities
-    let blocksPlayerWin = false
-    for (const playerPiece of playerPieces) {
-      const emptySpaces = testBoard.map((cell, index) => cell === 0 ? index : -1).filter(i => i !== -1)
-      for (const empty of emptySpaces) {
-        const playerTestBoard = [...testBoard]
-        playerTestBoard[playerPiece] = 0
-        playerTestBoard[empty] = 1
-        if (checkWin(playerTestBoard, 1)) {
-          // Player could still win after this AI move
-          blocksPlayerWin = false
-          break
-        }
-      }
-      if (!blocksPlayerWin) break
-    }
-    
-    if (blocksPlayerWin) {
-      console.log('🛡️ AI BLOCKING ALL PLAYER WINS with:', move)
-      return { movement: move }
-    }
-  }
-  
-  // PRIORITY 3: Create maximum threats while minimizing player threats
-  let bestMovement = possibleMoves[0]
-  let bestScore = -1000
-  
-  for (const move of possibleMoves) {
-    const testBoard = [...board]
-    testBoard[move.from] = 0
-    testBoard[move.to] = 2
-    
-    const score = evaluateQuadraXBoard(testBoard, 2)
-    console.log(`📊 Movement ${move.from}→${move.to} score:`, score)
-    
-    if (score > bestScore) {
-      bestScore = score
-      bestMovement = move
-    }
-  }
-  
-  console.log('🎯 AI Selected optimal movement:', bestMovement, 'with score:', bestScore)
-  return { movement: bestMovement }
-}
-
-// Elite QuadraX Position Evaluation - Ruthless Analysis
-function evaluateQuadraXPosition(board: number[], move: number, player: number) {
-  const testBoard = [...board]
-  testBoard[move] = player
-  
-  // Immediate win (maximum priority)
-  if (checkWin(testBoard, player)) {
-    return 10000
-  }
-  
-  // Blocks opponent win (critical priority)
-  const opponent = 3 - player
-  const testOpponentBoard = [...board]
-  testOpponentBoard[move] = opponent
-  if (checkWin(testOpponentBoard, opponent)) {
-    return 5000
-  }
-  
-  // Strategic QuadraX evaluation
-  return evaluateQuadraXBoard(testBoard, player)
-}
-
-// Comprehensive QuadraX Board Evaluation
-function evaluateQuadraXBoard(board: number[], player: number) {
-  let score = 0
-  const opponent = 3 - player
-  
-  // All QuadraX winning patterns - EXACT 4x4 rules
-  const patterns = [
-    // HORIZONTAL LINES (4-in-a-row)
-    [0,1,2,3], [4,5,6,7], [8,9,10,11], [12,13,14,15],
-    
-    // VERTICAL LINES (4-in-a-column)  
-    [0,4,8,12], [1,5,9,13], [2,6,10,14], [3,7,11,15],
-    
-    // DIAGONAL LINES (any direction)
-    [0,5,10,15], [3,6,9,12],
-    
-    // 2x2 SQUARE BLOCKS (anywhere on board)
-    [0,1,4,5], [1,2,5,6], [2,3,6,7], 
-    [4,5,8,9], [5,6,9,10], [6,7,10,11], 
-    [8,9,12,13], [9,10,13,14], [10,11,14,15]
-  ]
-  
-  console.log('🔍 Evaluating board for player', player)
-  
-  for (const pattern of patterns) {
-    const aiPieces = pattern.filter(pos => board[pos] === player).length
-    const opponentPieces = pattern.filter(pos => board[pos] === opponent).length
-    const empty = pattern.filter(pos => board[pos] === 0).length
-    
-    // AI advantage scoring (MAXIMIZE)
-    if (opponentPieces === 0) { // Clear path for AI
-      if (aiPieces === 4) {
-        console.log('🏆 AI HAS WINNING PATTERN:', pattern)
-        score += 10000 // AI wins!
-      }
-      else if (aiPieces === 3) {
-        console.log('⚡ AI 3-in-pattern:', pattern)
-        score += 1000 // Near win - very strong
-      }
-      else if (aiPieces === 2) {
-        console.log('💪 AI 2-in-pattern:', pattern)
-        score += 100 // Good progress
-      }
-      else if (aiPieces === 1) {
-        score += 10 // Start
-      }
-    }
-    
-    // Opponent threat assessment (MINIMIZE)
-    if (aiPieces === 0) { // Clear path for opponent - CRITICAL!
-      if (opponentPieces === 4) {
-        console.log('💀 OPPONENT WINS:', pattern)
-        score -= 10000 // Opponent wins - must prevent!
-      }
-      else if (opponentPieces === 3) {
-        console.log('🚨 OPPONENT 3-in-pattern - BLOCK NOW:', pattern)
-        score -= 2000 // Critical threat - higher penalty!
-      }
-      else if (opponentPieces === 2) {
-        console.log('⚠️ Opponent 2-in-pattern:', pattern)
-        score -= 200 // Significant threat
-      }
-      else if (opponentPieces === 1) {
-        score -= 20 // Early threat
-      }
-    }
-  }
-  
-  // Strategic positioning bonuses
-  const centerPositions = [5, 6, 9, 10] // Center control
-  for (const pos of centerPositions) {
-    if (board[pos] === player) score += 15
-    if (board[pos] === opponent) score -= 15
-  }
-  
-  // Corner control (good for multiple patterns)
-  const cornerPositions = [0, 3, 12, 15]
-  for (const pos of cornerPositions) {
-    if (board[pos] === player) score += 8
-    if (board[pos] === opponent) score -= 8
-  }
-  
-  console.log('📊 Final evaluation score:', score)
-  return score
-}
-
-// Legacy board evaluation - replaced by evaluateQuadraXBoard
-function evaluateBoard(board: number[], player: number) {
-  return evaluateQuadraXBoard(board, player)
-}
-
-function findWinningMove(board: number[], player: number, availableMoves?: number[]): number | null {
-  const moves = availableMoves || board.map((_, i) => i).filter(i => board[i] === 0)
-  
-  for (const move of moves) {
-    const testBoard = [...board]
-    testBoard[move] = player
-    if (checkWin(testBoard, player)) {
-      return move
-    }
-  }
-  
-  return null
-}
-
-function checkWin(board: number[], player: number): boolean {
-  // All winning patterns for 4x4 QuadraX
-  const patterns = [
-    // Horizontal
-    [0,1,2,3], [4,5,6,7], [8,9,10,11], [12,13,14,15],
-    // Vertical  
-    [0,4,8,12], [1,5,9,13], [2,6,10,14], [3,7,11,15],
-    // Diagonal
-    [0,5,10,15], [3,6,9,12],
-    // 2x2 Squares
-    [0,1,4,5], [1,2,5,6], [2,3,6,7], [4,5,8,9], 
-    [5,6,9,10], [6,7,10,11], [8,9,12,13], [9,10,13,14], [10,11,14,15]
-  ]
-  
-  return patterns.some(pattern => 
-    pattern.every(pos => board[pos] === player)
-  )
-}
-

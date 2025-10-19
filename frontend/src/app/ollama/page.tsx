@@ -7,28 +7,37 @@
 
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { EnhancedAINegotiationPanel } from '@/components/OllamaIntegration'
-import { useEnhancedHederaAgents } from '@/lib/agents/enhancedHederaAgentKit'
 import { Board } from '@/features/game'
 import Link from 'next/link'
+import { useState } from 'react'
 
 export default function OllamaDemoPage() {
-  const {
-    gameState,
-    getAIMove,
-    updateBoard
-  } = useEnhancedHederaAgents()
+  const [gameState, setGameState] = useState({
+    board: Array(16).fill(null),
+    currentPlayer: 1,
+    isGameActive: true,
+    phase: 'placement' as 'placement' | 'movement'
+  })
 
   const handleCellClick = async (position: number) => {
-    if (gameState.board[position] !== 0 || gameState.gamePhase !== 'playing') return
+    if (gameState.board[position] !== null || !gameState.isGameActive) return
 
     // Human move
-    updateBoard(position, gameState.currentPlayer)
+    const newBoard = [...gameState.board]
+    newBoard[position] = gameState.currentPlayer
+    setGameState(prev => ({ ...prev, board: newBoard }))
 
-    // AI move (if enabled)
-    setTimeout(async () => {
-      const aiMove = await getAIMove(0, 30) // Get move from first agent
-      if (aiMove !== null) {
-        updateBoard(aiMove, gameState.currentPlayer)
+    // AI move (placeholder for demo)
+    setTimeout(() => {
+      const emptyPositions = gameState.board
+        .map((cell, index) => cell === null ? index : null)
+        .filter(pos => pos !== null)
+      
+      if (emptyPositions.length > 0) {
+        const aiMove = emptyPositions[Math.floor(Math.random() * emptyPositions.length)]
+        const updatedBoard = [...newBoard]
+        updatedBoard[aiMove!] = gameState.currentPlayer === 1 ? 2 : 1
+        setGameState(prev => ({ ...prev, board: updatedBoard }))
       }
     }, 1000)
   }
@@ -113,25 +122,23 @@ export default function OllamaDemoPage() {
                   board={gameState.board}
                   onCellClick={handleCellClick}
                   currentPlayer={gameState.currentPlayer}
-                  disabled={gameState.gamePhase !== 'playing'}
+                  disabled={!gameState.isGameActive}
                 />
 
                 <div className="mt-6 text-center">
                   <div className="text-sm text-white/70 mb-2">Game Phase:</div>
                   <div className="text-lg font-semibold capitalize text-blue-400">
-                    {gameState.gamePhase}
+                    {gameState.phase}
                   </div>
                   
-                  {gameState.stakes.agreed && (
-                    <div className="mt-4 bg-green-500/20 rounded-lg p-4">
-                      <div className="text-lg font-bold text-green-400">
-                        Stakes: ${gameState.stakes.amount}
-                      </div>
-                      <div className="text-sm text-white/70">
-                        AI negotiated and agreed!
-                      </div>
+                  <div className="mt-4 bg-blue-500/20 rounded-lg p-4">
+                    <div className="text-lg font-bold text-blue-400">
+                      Demo Mode
                     </div>
-                  )}
+                    <div className="text-sm text-white/70">
+                      Ollama integration placeholder
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

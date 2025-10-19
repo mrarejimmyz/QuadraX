@@ -4,16 +4,15 @@
 
 export { default as Board } from './Board';
 export { default as GameInfo } from './GameInfo';
-export { default as AIChat } from './AIChat.refactored';
+export { default as AIChat } from './AIChat';
 
 // Refactored components
-export { default as AIChatRefactored } from './AIChat.refactored';
 export { StatusBar } from './components/StatusBar';
 export { MessageList } from './components/MessageList';
 export { ChatInput } from './components/ChatInput';
 
 // Refactored hooks
-export { useAgentManager } from './hooks/useAgentManager';
+// useAgentManager removed - using pure ASI Alliance system
 export { useAICommands } from './hooks/useAICommands';
 
 // Types and utilities

@@ -263,7 +263,7 @@ async function testASIAllianceConnection() {
     logTest('Hedera network ready', true, 'Testnet accessible');
     
     // Test environment configuration
-    const hasASIKey = !!(process.env.NEXT_PUBLIC_ASI_API_KEY || 'sk_3a48c45572ec40f085dcefceb23f9eb24c946285b21b4abba353ae8537090747');
+  const hasASIKey = !!process.env.NEXT_PUBLIC_ASI_API_KEY;
     logTest('ASI API key configured', hasASIKey, hasASIKey ? 'API key present' : 'Missing API key');
     
     return asiResponse.ok && hasASIKey;

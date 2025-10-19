@@ -7,7 +7,7 @@ import { WalletConnectSetupNotice } from '@/components/WalletConnectSetupNotice'
 import { WalletConnectProjectIdNotice } from '@/components/WalletConnectProjectIdNotice'
 import { StakingPanel } from '@/features/staking'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import { AIChatRefactored as AIChat, Board } from '@/features/game'
+import { AIChat, Board } from '@/features/game'
 import Link from 'next/link'
 
 export default function Home() {

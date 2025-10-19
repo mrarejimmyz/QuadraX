@@ -1,6 +1,5 @@
 'use client'
 
-import { QuadraXAgent } from '../../../lib/agents/quadraXAgent'
 import { Message, GamePosition, PYUSDStakeContext, ASIStatus } from '../types/chat.types'
 import { 
   createMessage, 
@@ -12,7 +11,7 @@ import { useWallet } from '../../../lib/hooks/useWallet'
 import { useBalances } from '../../../lib/hooks/useBalances'
 
 interface UseAICommandsProps {
-  agents: QuadraXAgent[]
+  agents: any[]
   asiStatus: ASIStatus
   gamePosition?: GamePosition
   stakingContext?: PYUSDStakeContext

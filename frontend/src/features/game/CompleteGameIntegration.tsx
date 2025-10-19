@@ -5,7 +5,6 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useIntelligentStaking } from '@/features/staking/IntelligentStakingSystem'
-import { useEnhancedHederaAgents } from '@/lib/agents/enhancedHederaAgentKit'
 import { useWriteContract, useAccount } from 'wagmi'
 import { parseUnits } from 'viem'
 
@@ -41,11 +40,9 @@ export function useGameWithIntelligentStaking() {
     setCurrentGameId
   } = useIntelligentStaking()
 
-  // Hedera Agent Kit A2A system
-  const {
-    agents: hederaAgents,
-    messages
-  } = useEnhancedHederaAgents()
+  // Placeholder for demo
+  const hederaAgents: any[] = []
+  const messages: any[] = []
 
   const [gameState, setGameState] = useState<GameState>({
     phase: 'setup',

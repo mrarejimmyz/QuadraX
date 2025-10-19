@@ -8,7 +8,6 @@
 
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { EnhancedAINegotiationPanel } from '@/components/OllamaIntegration' // TODO: Update to ASI component
-import { useEnhancedHederaAgents } from '@/lib/agents/enhancedHederaAgentKit'
 import { Board } from '@/features/game'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
@@ -19,11 +18,12 @@ export default function ASIAllianceDemoPage() {
   const [asiStatus, setAsiStatus] = useState<'connecting' | 'connected' | 'error'>('connecting')
   const [mettaStatus, setMettaStatus] = useState<'connecting' | 'connected' | 'error'>('connecting')
   
-  const {
-    gameState,
-    getAIMove,
-    updateBoard
-  } = useEnhancedHederaAgents()
+  const [gameState, setGameState] = useState({
+    board: Array(16).fill(null),
+    currentPlayer: 1,
+    isGameActive: true,
+    phase: 'placement' as 'placement' | 'movement'
+  })
 
   useEffect(() => {
     // Initialize ASI Alliance services
@@ -53,16 +53,24 @@ export default function ASIAllianceDemoPage() {
   }, [])
 
   const handleCellClick = async (position: number) => {
-    if (gameState.board[position] !== 0 || gameState.gamePhase !== 'playing') return
+    if (gameState.board[position] !== null || !gameState.isGameActive) return
 
     // Human move
-    updateBoard(position, gameState.currentPlayer)
+    const newBoard = [...gameState.board]
+    newBoard[position] = gameState.currentPlayer
+    setGameState(prev => ({ ...prev, board: newBoard }))
 
-    // ASI Alliance AI move (enhanced with MeTTa reasoning)
-    setTimeout(async () => {
-      const aiMove = await getAIMove(0, 30) // Get move from first ASI agent
-      if (aiMove !== null) {
-        updateBoard(aiMove, gameState.currentPlayer)
+    // ASI Alliance AI move (placeholder for demo)
+    setTimeout(() => {
+      const emptyPositions = gameState.board
+        .map((cell, index) => cell === null ? index : null)
+        .filter(pos => pos !== null)
+      
+      if (emptyPositions.length > 0) {
+        const aiMove = emptyPositions[Math.floor(Math.random() * emptyPositions.length)]
+        const updatedBoard = [...newBoard]
+        updatedBoard[aiMove!] = gameState.currentPlayer === 1 ? 2 : 1
+        setGameState(prev => ({ ...prev, board: updatedBoard }))
       }
     }, 1000)
   }

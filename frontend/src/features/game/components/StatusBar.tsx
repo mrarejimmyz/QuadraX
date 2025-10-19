@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react'
 import { ASIStatus, ChatMode } from '../types/chat.types'
-import { QuadraXAgent } from '../../../lib/agents/quadraXAgent'
 import { useChainId, useBlockNumber } from 'wagmi'
 import { useWallet } from '../../../lib/hooks/useWallet'
 import { useBalances } from '../../../lib/hooks/useBalances'
@@ -11,7 +10,7 @@ interface StatusBarProps {
   activeMode: ChatMode
   setActiveMode: (mode: ChatMode) => void
   asiStatus: ASIStatus
-  agents: QuadraXAgent[]
+  agents: any[]
 }
 
 export function StatusBar({ activeMode, setActiveMode, asiStatus, agents }: StatusBarProps) {

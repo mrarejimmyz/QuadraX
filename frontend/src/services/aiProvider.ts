@@ -37,9 +37,7 @@ export class AIProviderService {
     
     // Initialize ASI service with complete configuration
     this.asiService = new ASIService({
-      apiKey: config.apiKey || 
-              process.env.NEXT_PUBLIC_ASI_API_KEY || 
-              'sk_3a48c45572ec40f085dcefceb23f9eb24c946285b21b4abba353ae8537090747',
+      apiKey: config.apiKey || process.env.NEXT_PUBLIC_ASI_API_KEY || process.env.ASI_API_KEY || '',
       agentverse: {
         apiToken: config.agentverse?.apiToken || process.env.NEXT_PUBLIC_AGENTVERSE_TOKEN,
         mcpEnabled: config.agentverse?.mcpEnabled ?? true,

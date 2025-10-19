@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { Board, GameInfo } from '@/features/game'
+import { Board, GameInfo, AIChat } from '@/features/game'
 import StakingPanel from '@/features/staking/StakingPanel'
 import { IntelligentStakingPanel } from '@/features/staking/IntelligentStakingSystem'
 import { useGameWithIntelligentStaking } from '@/features/game/CompleteGameIntegration'
-import { AIChat } from '@/features/game'
 import Link from 'next/link'
 
 // Game position interface for AI analysis
@@ -52,6 +51,15 @@ export default function GamePage() {
     piecesPlaced: { player1: 0, player2: 0 },
     currentPlayer: 1
   })
+
+  // ASI Alliance decision tracking
+  const [lastASIDecision, setLastASIDecision] = useState<{
+    agent: string
+    reasoning: string
+    confidence: number
+    move: any
+    timestamp: number
+  } | null>(null)
   
   // Staking context for AI
   const [stakingContext, setStakingContext] = useState<PYUSDStakeContext>({
@@ -269,14 +277,15 @@ export default function GamePage() {
     }
 
     try {
-      // Query ASI Alliance agents for strategic analysis
+      // Query Enhanced ASI Alliance (4 agents + Ollama fallback)
       const response = await fetch('/api/ai/strategic-move', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          boardState: boardAnalysis,
-          requestType: 'ruthless-optimal-move',
-          difficulty: 'maximum'
+          board: board,
+          phase: 'placement',
+          currentPlayer: 2,
+          placedPieces: { 1: board.filter(cell => cell === 1).length, 2: board.filter(cell => cell === 2).length }
         })
       })
 
@@ -287,14 +296,26 @@ export default function GamePage() {
       }
 
       const aiDecision = await response.json()
-      console.log('🎯 AI Decision Response:', aiDecision)
+      console.log('🎯 ASI Alliance Decision:', aiDecision)
+      
+      // Track the ASI decision for UI display
+      if (aiDecision.agent && aiDecision.reasoning) {
+        setLastASIDecision({
+          agent: aiDecision.agent,
+          reasoning: aiDecision.reasoning,
+          confidence: aiDecision.confidence || 0.8,
+          move: aiDecision.move,
+          timestamp: Date.now()
+        })
+      }
       
       // Validate the AI's move
       if (aiDecision.move !== undefined && availableMoves.includes(aiDecision.move)) {
-        console.log('✅ AI Selected Move:', aiDecision.move)
+        console.log(`✅ ${aiDecision.agent} Selected Move:`, aiDecision.move)
+        console.log(`🧠 Reasoning: ${aiDecision.reasoning}`)
         return aiDecision.move
       } else {
-        console.warn('⚠️ AI returned invalid move:', aiDecision.move, 'Available:', availableMoves)
+        console.warn('⚠️ ASI Alliance returned invalid move:', aiDecision.move, 'Available:', availableMoves)
         return availableMoves[0] || 0
       }
     } catch (error) {
@@ -320,14 +341,15 @@ export default function GamePage() {
     console.log('🎯 Possible AI Movements:', possibleMoves.length, 'options')
 
     try {
-      // Query AI agents for best movement
+      // Query Enhanced ASI Alliance for movement
       const response = await fetch('/api/ai/strategic-move', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          boardState: { board, aiPieces, possibleMoves },
-          requestType: 'optimal-movement',
-          difficulty: 'ruthless'
+          board: board,
+          phase: 'movement',
+          currentPlayer: 2,
+          placedPieces: { 1: board.filter(cell => cell === 1).length, 2: board.filter(cell => cell === 2).length }
         })
       })
 
@@ -339,11 +361,12 @@ export default function GamePage() {
       const aiDecision = await response.json()
       console.log('🎯 AI Movement Response:', aiDecision)
       
-      if (aiDecision.movement) {
-        console.log('✅ AI Selected Movement:', aiDecision.movement)
-        return aiDecision.movement
+      if (aiDecision.move && typeof aiDecision.move === 'object' && 'from' in aiDecision.move) {
+        console.log('✅ ASI Alliance Selected Movement:', aiDecision.move)
+        console.log('🧠 Decision by:', aiDecision.agent, '- Confidence:', aiDecision.confidence)
+        return aiDecision.move
       } else {
-        console.warn('⚠️ AI returned no movement, using random')
+        console.warn('⚠️ ASI Alliance returned invalid movement, using fallback')
         return possibleMoves.length > 0 ? possibleMoves[0] : null
       }
     } catch (error) {
@@ -354,6 +377,17 @@ export default function GamePage() {
 
   const makeAIPlacement = async (currentBoard: number[]) => {
     console.log('🤖 AI Placement Turn Started')
+    console.log('🔍 DEBUG - Current board passed to makeAIPlacement:', currentBoard)
+    console.log('🎨 DEBUG - Board visualization:')
+    for (let i = 0; i < 4; i++) {
+      const row = currentBoard.slice(i * 4, (i + 1) * 4)
+        .map((cell) => cell === 0 ? '_' : cell === 1 ? 'X' : 'O')
+        .join(' ')
+      console.log(`   Row ${i}: ${row}`)
+    }
+    console.log('🔍 DEBUG - X positions:', currentBoard.map((cell, i) => cell === 1 ? i : -1).filter(i => i !== -1))
+    console.log('🔍 DEBUG - O positions:', currentBoard.map((cell, i) => cell === 2 ? i : -1).filter(i => i !== -1))
+    
     const availableMoves = currentBoard.map((cell, index) => cell === 0 ? index : null).filter(i => i !== null) as number[]
     console.log('📍 Available placement moves:', availableMoves)
     if (availableMoves.length === 0) return
@@ -641,6 +675,31 @@ export default function GamePage() {
           {/* Center - Game Board */}
           <div className="lg:col-span-1">
             <div className="sticky top-6">
+              {/* ASI Alliance Decision Display */}
+              {lastASIDecision && currentPlayer === 2 && (
+                <div className="mb-4 bg-gradient-to-r from-purple-600/20 to-indigo-600/20 backdrop-blur-xl 
+                              border border-purple-400/30 rounded-2xl p-4 glass-effect">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                      🤖 <span className="text-purple-300">ASI Alliance</span>
+                    </h3>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-purple-200 text-sm font-medium">{lastASIDecision.agent}</span>
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    </div>
+                  </div>
+                  <div className="bg-black/30 rounded-xl p-3 backdrop-blur-sm border border-white/10">
+                    <p className="text-white text-sm mb-2 leading-relaxed">
+                      <span className="text-purple-300 font-semibold">💭 Reasoning:</span> {lastASIDecision.reasoning}
+                    </p>
+                    <div className="flex justify-between items-center text-xs text-purple-200 pt-2 border-t border-white/10">
+                      <span className="font-medium">🎯 Move: Position {lastASIDecision.move}</span>
+                      <span className="font-medium">📊 Confidence: {Math.round(lastASIDecision.confidence * 100)}%</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <Board
                 board={board}
                 onCellClick={handleCellClick}
@@ -845,6 +904,76 @@ export default function GamePage() {
                     </div>
                   </div>
                 )}
+
+                {/* Enhanced ASI Alliance Status */}
+                {gamePhase === 'gameplay' && (
+                  <div className="glass-ultra-thin rounded-xl p-3 border border-purple-400/30 mt-3">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-purple-400 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></div>
+                        ASI Alliance Active
+                      </h4>
+                      <div className="text-xs px-2 py-1 rounded-full bg-gradient-to-r from-purple-400/20 to-blue-400/20 
+                                    border border-purple-400/30 text-purple-400 font-medium">
+                        4 Agents
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      {/* Alpha Agent */}
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <div className="w-4 h-4 rounded bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                          <span className="text-xs text-white font-bold">α</span>
+                        </div>
+                        <div className="text-xs">
+                          <div className="text-blue-400 font-semibold">Alpha</div>
+                          <div className="text-white/60">Strategic</div>
+                        </div>
+                      </div>
+                      
+                      {/* Beta Agent */}
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+                        <div className="w-4 h-4 rounded bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
+                          <span className="text-xs text-white font-bold">β</span>
+                        </div>
+                        <div className="text-xs">
+                          <div className="text-green-400 font-semibold">Beta</div>
+                          <div className="text-white/60">Defensive</div>
+                        </div>
+                      </div>
+                      
+                      {/* Gamma Agent */}
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                        <div className="w-4 h-4 rounded bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center">
+                          <span className="text-xs text-white font-bold">γ</span>
+                        </div>
+                        <div className="text-xs">
+                          <div className="text-red-400 font-semibold">Gamma</div>
+                          <div className="text-white/60">Aggressive</div>
+                        </div>
+                      </div>
+                      
+                      {/* Delta Agent */}
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                        <div className="w-4 h-4 rounded bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
+                          <span className="text-xs text-white font-bold">δ</span>
+                        </div>
+                        <div className="text-xs">
+                          <div className="text-yellow-400 font-semibold">Delta</div>
+                          <div className="text-white/60">Adaptive</div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1 text-purple-400">
+                        <div className="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
+                        <span>Ollama + Llama 3.2 Ready</span>
+                      </div>
+                      <div className="text-white/50">Referee: Active</div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -855,7 +984,7 @@ export default function GamePage() {
               gameId={gameId.toString()}
               gamePosition={gamePhase === 'gameplay' ? gamePosition : undefined}
               stakingContext={stakingContext}
-              onStakeLocked={handleStakeLocked}
+              onStakeLocked={(stake: number) => handleStakeLocked(gameId, stake)}
               onNegotiationComplete={handleNegotiationComplete}
             />
           </div>
