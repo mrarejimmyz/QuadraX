@@ -1,7 +1,7 @@
 // QuadraX Move Scoring System
 // Advanced scoring algorithms for evaluating move quality
 
-import { checkWin, createsFork, getAdjacentPositions, countThreats } from './gameLogic'
+import { checkWin, createsFork, getAdjacentPositions, countThreats, detectsMultiThreatSetup, preventsMultiThreatSetup, checkForWinDetails } from './gameLogic'
 
 /**
  * Score a move using aggressive QuadraX strategies
@@ -98,6 +98,72 @@ export function scoreMove(
   if ([5,6,9,10].includes(pos)) {
     const opponentCenterControl = [5,6,9,10].filter(p => board[p] === opponent).length
     if (opponentCenterControl >= 1) score += 6 // Deny center expansion
+  }
+  
+  // CRITICAL: MULTI-THREAT PREVENTION - Prevent unblockable opponent setups
+  if (phase === 'placement') {
+    // Check if this move directly blocks a position opponent needs for multi-threats
+    let blocksOpponentMultiThreatSetup = false
+    
+    // Test: if opponent could place at this position, would it create multi-threats?
+    const opponentMultiThreatTest = [...board]
+    opponentMultiThreatTest[pos] = opponent
+    
+    let opponentWouldHaveThreats = 0
+    for (let testPos = 0; testPos < 16; testPos++) {
+      if (opponentMultiThreatTest[testPos] === 0) {
+        const winTest = [...opponentMultiThreatTest]
+        winTest[testPos] = opponent
+        if (checkWin(winTest, opponent)) {
+          opponentWouldHaveThreats++
+        }
+      }
+    }
+    
+    if (opponentWouldHaveThreats >= 2) {
+      blocksOpponentMultiThreatSetup = true
+      score += 1200 // MASSIVE bonus for blocking multi-threat setup positions
+      console.log(`🎯 SCORING: HUGE BONUS (+1200) for move ${pos} - blocks opponent multi-threat setup (${opponentWouldHaveThreats} threats prevented)`)
+    }
+    
+    // Also check if our move allows opponent to create multi-threats elsewhere
+    const testBoard = [...board]
+    testBoard[pos] = player
+    
+    let allowsMultiThreat = false
+    let maxOpponentThreats = 0
+    
+    for (let opponentPos = 0; opponentPos < 16; opponentPos++) {
+      if (testBoard[opponentPos] === 0) {
+        const opponentTestBoard = [...testBoard]
+        opponentTestBoard[opponentPos] = opponent
+        
+        // Count opponent threats after their move
+        let opponentThreats = 0
+        for (let threatPos = 0; threatPos < 16; threatPos++) {
+          if (opponentTestBoard[threatPos] === 0) {
+            const winTestBoard = [...opponentTestBoard]
+            winTestBoard[threatPos] = opponent
+            if (checkWin(winTestBoard, opponent)) {
+              opponentThreats++
+            }
+          }
+        }
+        
+        if (opponentThreats >= 2) {
+          allowsMultiThreat = true
+          maxOpponentThreats = Math.max(maxOpponentThreats, opponentThreats)
+        }
+      }
+    }
+    
+    if (allowsMultiThreat && !blocksOpponentMultiThreatSetup) {
+      score -= 1500 // CATASTROPHIC penalty for allowing multi-threats
+      console.log(`🚨 SCORING: CATASTROPHIC PENALTY (-1500) for move ${pos} - allows opponent ${maxOpponentThreats} winning threats`)
+    } else if (!blocksOpponentMultiThreatSetup) {
+      score += 100 // Bonus for not enabling multi-threats
+      console.log(`✅ SCORING: Bonus (+100) for move ${pos} - prevents multi-threats`)
+    }
   }
   
   return score

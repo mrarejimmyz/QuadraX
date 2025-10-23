@@ -1,103 +1,176 @@
-// Gamma Aggressor Agent - ASI Alliance Aggressive Tactics with Ollama Fallback
-// Specialized in immediate win creation, pressure tactics, and offensive combinations
+// Gamma Aggressor Agent - ASI Alliance Enhanced Aggressive Tactics
+// Specialized in immediate win creation, multi-threat setups, and smart offensive pressure
 
 import { callASIAllianceWithFallback, parseASIResponse } from '../../services/asiService'
+import { findCriticalBlockingPositions, findAllWinningMoves, checkWin } from '../../utils/quadraX/gameLogic'
+import { QuadraXMinimaxEngine } from './minimaxEngine'
 import type { GamePosition, AgentDecision, OpponentProfile } from './types'
 
 export class GammaAggressor {
   public readonly name = 'GammaAggressor'
   public readonly type = 'aggressive'
-  public readonly personality = 'bold'
-  public readonly focus = 'IMMEDIATE WIN CREATION & PRESSURE'
+  public readonly personality = 'aggressive' as const
+  public readonly focus = 'MINIMAX AGGRESSIVE ANALYSIS & WIN CREATION'
   
   /**
-   * Generate aggressive analysis for QuadraX moves
+   * Generate aggressive analysis for QuadraX moves using Minimax engine
    */
   async selectQuadraXMove(
     gamePosition: GamePosition,
     opponentProfile: OpponentProfile,
     timeRemaining: number
   ): Promise<AgentDecision> {
-    console.log(`⚡ ${this.name}: Analyzing aggressive position via ASI Alliance...`)
+    console.log(`⚡ ${this.name}: Analyzing aggressive position with MINIMAX engine...`)
     
-    try {
-      const prompt = this.createAggressivePrompt(gamePosition, opponentProfile)
-      const response = await callASIAllianceWithFallback(prompt, 'gamma', {
-        board: gamePosition.board,
-        phase: gamePosition.phase,
-        currentPlayer: gamePosition.currentPlayer,
-        availableMoves: gamePosition.possibleMoves
-      })
-      const parsed = parseASIResponse(response, gamePosition)
-      
-      return {
-        move: parsed.move,
-        confidence: parsed.confidence || 0.88,
-        reasoning: `Aggressive Analysis: ${parsed.reasoning || response}`,
-        agent: this.name,
-        type: this.type,
-        tacticalAnalysis: parsed.tacticalAnalysis,
-        phaseStrategy: gamePosition.phase
-      }
-    } catch (error) {
-      console.error(`❌ ${this.name}: ASI Alliance call failed:`, error)
-      throw error
+    // Use Minimax engine for aggressive analysis
+    const minimaxResult = QuadraXMinimaxEngine.getBestMove(gamePosition, 4, this.personality)
+    
+    // Get detailed analysis of the chosen move
+    const moveAnalysis = QuadraXMinimaxEngine.analyzeMove(gamePosition, minimaxResult.move, this.personality)
+    
+    // Determine confidence based on minimax score and aggressive analysis
+    let confidence = 0.88
+    if (minimaxResult.isWinning) confidence = 1.0  // Maximum confidence for winning moves
+    else if (minimaxResult.score > 800) confidence = 0.95  // High confidence for strong aggressive positions
+    else if (minimaxResult.isBlocking) confidence = 0.90  // Even aggressors must block critical threats
+    else if (minimaxResult.score > 300) confidence = 0.92  // Good aggressive position
+    else if (minimaxResult.score < -500) confidence = 0.75  // Poor position
+    
+    // Determine move type based on analysis
+    let moveType: 'offensive' | 'defensive' | 'strategic' = 'offensive'
+    if (minimaxResult.isWinning) moveType = 'offensive'
+    else if (minimaxResult.isBlocking) moveType = 'defensive'
+    else moveType = 'offensive'  // Aggressors default to offensive
+    
+    console.log(`⚡ ${this.name}: MINIMAX selected aggressive move with score ${minimaxResult.score}`)
+    
+    return {
+      move: minimaxResult.move,
+      confidence,
+      reasoning: `MINIMAX AGGRESSIVE: ${moveAnalysis.reasoning} (Score: ${minimaxResult.score}, Depth: ${minimaxResult.depth})`,
+      agent: this.name,
+      type: moveType,
+      tacticalAnalysis: `Minimax depth ${minimaxResult.depth}: ${minimaxResult.reasoning}`,
+      phaseStrategy: gamePosition.phase,
+      minimaxScore: minimaxResult.score
     }
   }
 
   /**
-   * Create aggressive analysis prompt
+   * Create enhanced aggressive analysis prompt
    */
   private createAggressivePrompt(gamePosition: GamePosition, opponentProfile: OpponentProfile): string {
     const { board, phase, possibleMoves } = gamePosition
     
-    return `⚔️ GAMMA AGGRESSOR - QuadraX Aggressive Analysis
+    const winningOpportunities = this.analyzeEnhancedWinningPaths(board, gamePosition.currentPlayer)
+    const aggressiveStrategy = this.calculateKillSequence(board, possibleMoves, phase)
+    
+    // ENHANCED: Get our winning opportunities and multi-threat potential
+    const currentPlayer = gamePosition.currentPlayer
+    const ourWinningMoves = findAllWinningMoves(board, currentPlayer, possibleMoves as any, phase)
+    
+    const winAnalysis = ourWinningMoves.length > 0 ? 
+      `IMMEDIATE WINS AVAILABLE: ${ourWinningMoves.map(w => `${typeof w.move === 'number' ? w.move : w.move.from + '→' + w.move.to} (${w.winType})`).join(', ')}` :
+      'No immediate wins - focus on aggressive setup'
+    
+    return `You are Gamma Aggressor with ENHANCED WIN DETECTION. MISSION: DESTROY OPPONENT! Win at ANY cost.
 
-**GAME STATE:**
-Board: ${board.map((cell, idx) => `${idx}:${cell === 0 ? '·' : cell === 1 ? 'X' : 'O'}`).join(' ')}
-Phase: ${phase} | Available: ${possibleMoves.map((m: any) => typeof m === 'object' ? `${m.from}→${m.to}` : m).join(', ')}
+EXACT BOARD STATE:
+Current positions: ${board.map((cell, idx) => `${idx}=${cell === 0 ? 'empty' : cell === 1 ? 'X' : 'O'}`).join(' ')}
+YOUR pieces (X): positions [${board.map((cell, idx) => cell === 1 ? idx : null).filter(pos => pos !== null).join(', ')}]
+Opponent pieces (O): positions [${board.map((cell, idx) => cell === 2 ? idx : null).filter(pos => pos !== null).join(', ')}]
+Phase: ${phase} | Available moves: ${possibleMoves.map((m: any) => typeof m === 'object' ? `${m.from}→${m.to}` : m).join(', ')}
 
-**AGGRESSIVE PRIORITIES:**
-1. **WIN NOW**: Complete any 2×2 square immediately if possible
-2. **CREATE FORKS**: Set up multiple 2×2 threats opponent cannot defend simultaneously
-3. **PRESSURE**: Force opponent into defensive positions while building our attacks
-4. **DOMINATE CENTER**: Control positions 5,6,9,10 for maximum 2×2 square access
-5. **TEMPO**: Every move must threaten something while advancing our position
+ENHANCED WIN ANALYSIS: ${winAnalysis}
+KILLING OPPORTUNITIES: ${winningOpportunities}
+ATTACK SEQUENCE: ${aggressiveStrategy}
 
-**2×2 TARGET SQUARES:**
-[0,1,4,5] [1,2,5,6] [2,3,6,7] [4,5,8,9] [5,6,9,10] [6,7,10,11] [8,9,12,13] [9,10,13,14] [10,11,14,15]
+2×2 squares: [0,1,4,5] [1,2,5,6] [2,3,6,7] [4,5,8,9] [5,6,9,10] [6,7,10,11] [8,9,12,13] [9,10,13,14] [10,11,14,15]
 
-**ATTACK STRATEGY:**
-- Which move threatens the most 2×2 squares next turn?
-- Can we create an unavoidable double threat?
-- Target intersection positions (appear in multiple 2×2 squares)
-- Force opponent to react while we maintain offensive momentum
+MOVEMENT RULE: Pieces can teleport to ANY empty position!
 
-You are Gamma Aggressor, an autonomous QuadraX offensive agent optimized for creating winning combinations.
+ENHANCED WARRIOR'S CODE:
+1. IMMEDIATE WIN PRIORITY: If you can win NOW, take it immediately
+2. MULTI-THREAT CREATION: Create positions where you threaten 2+ wins simultaneously
+3. PRESSURE AMPLIFICATION: Every move should make opponent's life harder
+4. CENTER DOMINATION: Control [4,5,6,9,10] to enable multiple attack vectors
+5. FORCING MOVES: Make moves that opponent MUST respond to
+6. TACTICAL BRUTALITY: When in doubt, attack the strongest possible position
 
-OBJECTIVE: Execute aggressive multi-step planning to create unavoidable winning positions.
+ENHANCED KILL PRIORITIES:
+- IMMEDIATE WIN: Execute any available winning move instantly
+- DOUBLE THREAT: Create 2+ simultaneous winning threats (unblockable)
+- FORK CREATION: Force opponent into impossible defensive choices
+- CENTER ASSAULT: Dominate center positions for multiple attack angles
+- PATTERN COMPLETION: Advance your closest-to-winning patterns
+- MOVEMENT SETUP: Position pieces for devastating movement-phase attacks
 
-GAME STATE:
-- Board: ${board.map((cell, idx) => `${idx}:${cell === 0 ? '·' : cell === 1 ? 'X' : 'O'}`).join(' ')}
-- Phase: ${phase}
-- Available moves: ${possibleMoves.map((m: any) => typeof m === 'object' ? `${m.from}→${m.to}` : m).join(', ')}
+AGGRESSIVE DECISION MATRIX:
+- If immediate win available: TAKE IT NOW
+- If can create double threat: CREATE UNSTOPPABLE MULTI-THREAT
+- If can force opponent into bad position: APPLY MAXIMUM PRESSURE
+- If can advance multiple patterns: BUILD OVERLAPPING THREATS
+- Otherwise: ATTACK THE CENTER AND PREPARE DEVASTATING COMBOS
 
-OFFENSIVE MISSION:
-1. Immediate win detection: Can we complete any 2×2 square now?
-2. Fork creation: Which moves threaten multiple 2×2 squares simultaneously?
-3. Pressure application: Force opponent into defensive positions while building attacks
-4. Tempo control: Every move must advance our winning chances
+Your enhanced goal: Create overwhelming pressure that leads to inevitable victory!
 
-AGGRESSIVE REASONING:
-Use your autonomous analysis to:
-- Calculate which positions create the most future winning threats
-- Identify intersection squares that appear in multiple 2×2 patterns
-- Plan offensive sequences that opponent cannot fully defend
-- Create positions where we have multiple paths to victory
+{"move": ${phase === 'placement' ? 'position' : '{"from": X, "to": Y}'}, "confidence": 0.9, "reasoning": "enhanced_aggressive_dominance"}`
+  }
+  
+  private analyzeEnhancedWinningPaths(board: number[], currentPlayer: number): string {
+    const squares = [[0,1,4,5], [1,2,5,6], [2,3,6,7], [4,5,8,9], [5,6,9,10], [6,7,10,11], [8,9,12,13], [9,10,13,14], [10,11,14,15]]
+    
+    let closeToWin = 0        // We have 3/4 positions
+    let strongPositions = 0   // We have 2/4 positions
+    let potentialForks = 0    // Positions that could create multiple threats
+    
+    squares.forEach(square => {
+      const ourCount = square.filter(pos => board[pos] === currentPlayer).length
+      const emptyCount = square.filter(pos => board[pos] === 0).length
+      const blockedCount = square.filter(pos => board[pos] !== 0 && board[pos] !== currentPlayer).length
+      
+      if (blockedCount === 0) { // Not blocked by opponent
+        if (ourCount === 3 && emptyCount === 1) {
+          closeToWin++
+        } else if (ourCount === 2 && emptyCount >= 1) {
+          strongPositions++
+        } else if (ourCount === 1 && emptyCount === 3) {
+          // Check if this could create a fork (multiple threat setup)
+          const centerPositions = [4, 5, 6, 9, 10]
+          if (square.some(pos => centerPositions.includes(pos))) {
+            potentialForks++
+          }
+        }
+      }
+    })
+    
+    return `WIN PATHS: ${closeToWin} immediate, ${strongPositions} strong, ${potentialForks} fork opportunities`
+  }
 
-Execute relentless offensive analysis: always be threatening to win on the next move.
+  private calculateKillSequence(board: number[], possibleMoves: any[], phase: string): string {
+    if (phase === 'placement') {
+      // Find intersection positions that threaten multiple squares
+      const squares = [[0,1,4,5], [1,2,5,6], [2,3,6,7], [4,5,8,9], [5,6,9,10], [6,7,10,11], [8,9,12,13], [9,10,13,14], [10,11,14,15]]
+      const devastatingMoves = possibleMoves.filter(move => {
+        return squares.filter(square => square.includes(move)).length >= 3
+      })
+      
+      if (devastatingMoves.length > 0) {
+        return `DEVASTATING STRIKES: [${devastatingMoves.join(', ')}] threaten multiple squares!`
+      }
+    }
+    
+    return "Execute maximum aggression sequence"
+  }
 
-OUTPUT FORMAT: {"move": ${phase === 'placement' ? 'number' : '{"from": X, "to": Y}'}, "confidence": 0.0-1.0, "reasoning": "autonomous_offensive_analysis"}`
+  private findForkPotentials(board: number[]): string {
+    const squares = [[0,1,4,5], [1,2,5,6], [2,3,6,7], [4,5,8,9], [5,6,9,10], [6,7,10,11], [8,9,12,13], [9,10,13,14], [10,11,14,15]]
+    const strongPositions = squares.filter(square => {
+      const myCount = square.filter(pos => board[pos] === 1).length
+      const opponentCount = square.filter(pos => board[pos] === 2).length
+      return myCount >= 2 && opponentCount === 0
+    }).length
+    return `${strongPositions} favorable squares`
   }
 
   /**

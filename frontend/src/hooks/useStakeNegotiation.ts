@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi';
 import { parseUnits } from 'viem';
+import { CONTRACTS } from '@/lib/constants/contracts';
 
-const PYUSD_STAKING_ADDRESS = '0x...'; // TODO: Add deployed contract address
-const PYUSD_TOKEN_ADDRESS = '0x...'; // TODO: Add PYUSD token address
+// Use centralized contract configuration
+const PYUSD_STAKING_ADDRESS = CONTRACTS.STAKING.address;
+const PYUSD_TOKEN_ADDRESS = CONTRACTS.PYUSD.address;
 
 interface NegotiationResult {
   agreedStake: number; // In PYUSD (human readable)

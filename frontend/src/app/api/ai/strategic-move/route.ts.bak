@@ -6,7 +6,6 @@ import { NextRequest, NextResponse } from 'next/server'
 // Import modular ASI Alliance system
 import { ASIAllianceFactory } from '@/lib/agents/asi-alliance'
 import { QuadraXReferee } from '@/lib/referee/quadraXReferee'
-import { hybridValidator } from '@/lib/agents/asi-alliance/hybridValidator'
 import { scoreMove } from '@/lib/utils/quadraX/moveScoring'
 import { checkWin } from '@/lib/utils/quadraX/gameLogic'
 import type { GamePosition, AgentDecision, OpponentProfile } from '@/lib/agents/asi-alliance/types'
@@ -16,7 +15,6 @@ interface APIGameState {
   phase: 'placement' | 'movement'
   currentPlayer: number
   placedPieces?: { [player: number]: number }
-  safePieces?: number[]  // 🚨 NEW: Safe pieces that can be moved without enabling opponent wins
 }
 
 // Extended AgentDecision with score property
@@ -27,18 +25,12 @@ interface ExtendedAgentDecision extends AgentDecision {
 /**
  * Get possible moves for current game state
  */
-function getPossibleMoves(board: number[], phase: 'placement' | 'movement', currentPlayer: number, safePieces?: number[]): (number | { from: number; to: number })[] {
+function getPossibleMoves(board: number[], phase: 'placement' | 'movement', currentPlayer: number): (number | { from: number; to: number })[] {
   if (phase === 'placement') {
     return board.map((cell, index) => cell === 0 ? index : null).filter(pos => pos !== null) as number[]
   } else {
-    // Use safePieces if provided, otherwise use all player pieces
-    const playerPieces = safePieces && safePieces.length > 0 
-      ? safePieces 
-      : board.map((cell, index) => cell === currentPlayer ? index : -1).filter(pos => pos !== -1)
-    
+    const playerPieces = board.map((cell, index) => cell === currentPlayer ? index : -1).filter(pos => pos !== -1)
     const emptySpaces = board.map((cell, index) => cell === 0 ? index : -1).filter(pos => pos !== -1)
-    
-    console.log(`🚨 MOVEMENT GENERATION: Using pieces ${JSON.stringify(playerPieces)} (safe=${!!safePieces})`)
     
     const moves: { from: number, to: number }[] = []
     for (const piece of playerPieces) {
@@ -83,8 +75,7 @@ export async function POST(request: NextRequest) {
       board: body.board || body.gamePosition?.board || body.boardState?.board,
       phase: body.phase || body.gamePosition?.phase || body.boardState?.phase || 'placement',
       currentPlayer: body.currentPlayer || body.gamePosition?.currentPlayer || body.boardState?.currentPlayer || 2,
-      placedPieces: body.placedPieces || { 1: 0, 2: 0 },
-      safePieces: body.safePieces  // 🚨 NEW: Safe pieces that can be moved without enabling opponent wins
+      placedPieces: body.placedPieces || { 1: 0, 2: 0 }
     }
     
     // Validate game state
@@ -98,21 +89,14 @@ export async function POST(request: NextRequest) {
       phase: gameState.phase,
       player1Pieces: gameState.board.filter(cell => cell === 1).length,
       player2Pieces: gameState.board.filter(cell => cell === 2).length,
-      possibleMoves: getPossibleMoves(gameState.board, gameState.phase, gameState.currentPlayer, gameState.safePieces),
+      possibleMoves: getPossibleMoves(gameState.board, gameState.phase, gameState.currentPlayer),
       moveHistory: [],
       currentPlayer: gameState.currentPlayer as (1 | 2)
     }
     
     console.log(`🎯 Game State: ${gameState.phase} phase, Player ${gameState.currentPlayer}`)
     console.log(`🎲 Board State: ${gameState.board.map((c, i) => `${i}:${c === 0 ? '·' : c === 1 ? 'X' : 'O'}`).join(' ')}`)
-    
-    // 🚨 CRITICAL: Log safe pieces information for movement phase
-    if (gameState.phase === 'movement' && gameState.safePieces) {
-      console.log(`�️ SAFE PIECES FILTER ACTIVE: Only pieces ${JSON.stringify(gameState.safePieces)} can be moved`)
-      console.log(`🚨 PROTECTED PIECES: Other AI pieces are protected from abandonment`)
-    }
-    
-    console.log(`�📊 Available moves: ${gamePosition.possibleMoves.length} - ${gamePosition.possibleMoves.slice(0, 5).join(', ')}${gamePosition.possibleMoves.length > 5 ? '...' : ''}`)
+    console.log(`📊 Available moves: ${gamePosition.possibleMoves.length} - ${gamePosition.possibleMoves.join(', ')}`)
     
     // Get decision from ASI Alliance system
     const decision = await getASIAllianceDecision(gamePosition)
@@ -148,12 +132,10 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Main ASI Alliance decision system using HYBRID modular architecture
- * Combines QuadraXMasterStrategy finite game analysis with ASI Alliance minimax agents
- * Creates bulletproof AI that never allows easy wins
+ * Main ASI Alliance decision system using modular architecture
  */
 async function getASIAllianceDecision(gamePosition: GamePosition): Promise<ExtendedAgentDecision> {
-  console.log('🤖 HYBRID AI: Activating BULLETPROOF system with dual validation...')
+  console.log('🤖 ASI Alliance: Activating 4-agent consultation system...')
   console.log(`🚨 CRITICAL DEBUG: getASIAllianceDecision called for phase: ${gamePosition.phase}`)
   
   // Initialize referee system
@@ -164,7 +146,7 @@ async function getASIAllianceDecision(gamePosition: GamePosition): Promise<Exten
   console.log(`🎲 Board for referee: ${gamePosition.board.map((c, i) => `${i}:${c === 0 ? '·' : c === 1 ? 'X' : 'O'}`).join(' ')}`)
   console.log(`🚀 Possible moves for referee: ${JSON.stringify(gamePosition.possibleMoves.slice(0, 5))}... (${gamePosition.possibleMoves.length} total)`)
   
-  // PRIORITY 1: Check for guaranteed winning moves first (highest priority)
+  // Check for guaranteed winning moves first
   console.log(`🎯 REFEREE DEBUG: Checking for winning moves in ${gamePosition.phase} phase`)
   console.log(`🎯 REFEREE DEBUG: Current player ${gamePosition.currentPlayer} has ${gamePosition.possibleMoves.length} possible moves`)
   
@@ -195,7 +177,7 @@ async function getASIAllianceDecision(gamePosition: GamePosition): Promise<Exten
   console.log(`🎯 Looking for opponent (Player ${gamePosition.currentPlayer === 1 ? 2 : 1}) winning moves...`)
   
   // Use enhanced referee threat detection (includes future movement threats)
-  const threatResponse = await referee.findBlockingMove(
+  const threatResponse = await referee.checkThreats(
     gamePosition.board,
     gamePosition.currentPlayer,
     gamePosition.possibleMoves,
@@ -203,10 +185,10 @@ async function getASIAllianceDecision(gamePosition: GamePosition): Promise<Exten
   )
   
   if (threatResponse) {
-    console.log('🛡️ ENHANCED REFEREE: Critical threat detected!')
-    console.log(`🛡️ ENHANCED REFEREE: ${threatResponse.reasoning}`)
+    console.log('�️ ENHANCED REFEREE: Critical threat detected!')
+    console.log(`�️ ENHANCED REFEREE: ${threatResponse.reasoning}`)
     
-    return {
+    return NextResponse.json({
       move: threatResponse.move,
       reasoning: threatResponse.reasoning,
       confidence: 0.98,
@@ -216,12 +198,100 @@ async function getASIAllianceDecision(gamePosition: GamePosition): Promise<Exten
       agentCount: 1,
       refereeValidated: true,
       timestamp: Date.now()
-    } as ExtendedAgentDecision
+    })
   }
+      
+      // CRITICAL: Also check movement threats 
+      const humanPiecesCount = currentBoard.filter(cell => cell === humanPlayer).length
+      const isMovementPhase = gamePosition.phase.toString() === 'movement'
+      if (isMovementPhase || humanPiecesCount >= 4) {
+        console.log(`🔍 REFEREE: Checking human movement threats (phase: ${gamePosition.phase}, human pieces: ${humanPiecesCount})...`)
+        const humanPieces = currentBoard.map((cell, idx) => cell === humanPlayer ? idx : null).filter(pos => pos !== null)
+        const emptyPositions = currentBoard.map((cell, idx) => cell === 0 ? idx : null).filter(pos => pos !== null)
+        
+        let movementThreats = 0
+        const movementThreatMoves: string[] = []
+        
+        for (const piecePos of humanPieces) {
+          for (const emptyPos of emptyPositions) {
+            const testBoard = [...currentBoard]
+            testBoard[piecePos] = 0 // Remove piece from current position
+            testBoard[emptyPos] = humanPlayer // Place at new position
+            
+            if (checkWin(testBoard, humanPlayer)) {
+              movementThreats++
+              movementThreatMoves.push(`${piecePos}→${emptyPos}`)
+              console.log(`🚨 MOVEMENT THREAT: Human can win by moving ${piecePos}→${emptyPos}!`)
+            }
+          }
+        }
+        
+        if (movementThreats >= 2) {
+          console.log(`🚨🚨 CRITICAL MOVEMENT MULTI-THREAT: Human has ${movementThreats} winning moves: ${movementThreatMoves.join(', ')}`)
+          console.log(`🚨🚨 GAME LOST: Cannot block multiple movement threats simultaneously!`)
+        } else if (movementThreats === 1) {
+          console.log(`🚨 SINGLE MOVEMENT THREAT: Human can win with ${movementThreatMoves[0]}`)
+          humanThreats += movementThreats
+        }
+      }    if (humanThreats >= 2) {
+      console.log(`🚨🚨 CRITICAL: Human already has ${humanThreats} winning options at positions: ${threatPositions.join(', ')} - MULTI-THREAT SITUATION!`)
+      console.log(`🚨🚨 GAME EFFECTIVELY LOST - AI cannot block all threats simultaneously!`)
+      
+      // Try to block the most dangerous threat or create counter-threats
+      if (threatPositions.length > 0 && gamePosition.possibleMoves.includes(threatPositions[0])) {
+        console.log(`🛡️ EMERGENCY: Attempting to block first threat at position ${threatPositions[0]}`)
+        return {
+          move: threatPositions[0],
+          reasoning: `EMERGENCY MULTI-THREAT BLOCK: Blocking one of ${humanThreats} opponent winning positions`,
+          confidence: 0.99,
+          agent: 'QuadraXReferee',
+          type: 'referee',
+          score: 950
+        }
+      }
+    }
 
-  console.log('✅ REFEREE: No critical opponent threats detected, proceeding to enhanced analysis...')
-
-  // Use enhanced referee for additional blocking analysis
+    // PREVENTIVE ANALYSIS: Check if opponent is about to create multi-threats
+    console.log('🔍 REFEREE: Preventive analysis - checking if opponent can create multi-threats...')
+    const availablePlacements = gamePosition.possibleMoves as number[]
+    
+    for (const opponentMove of availablePlacements) {
+      const testBoard = [...currentBoard]
+      testBoard[opponentMove] = humanPlayer
+      
+      // Count how many 1-move wins opponent would have after this placement
+      let futureThreats = 0
+      for (let pos = 0; pos < 16; pos++) {
+        if (testBoard[pos] === 0) {
+          const winTestBoard = [...testBoard]
+          winTestBoard[pos] = humanPlayer
+          if (checkWin(winTestBoard, humanPlayer)) {
+            futureThreats++
+          }
+        }
+      }
+      
+      if (futureThreats >= 2) {
+        console.log(`🚨 PREVENTION: If opponent places at ${opponentMove}, they'll have ${futureThreats} winning options!`)
+        
+        // Block this critical position if we can
+        if (availablePlacements.includes(opponentMove)) {
+          console.log(`🛡️ BLOCKING MULTI-THREAT SETUP: Taking position ${opponentMove} to prevent ${futureThreats} threats`)
+          return {
+            move: opponentMove,
+            reasoning: `MULTI-THREAT PREVENTION: Blocking position ${opponentMove} prevents opponent from creating ${futureThreats} winning threats`,
+            confidence: 0.98,
+            agent: 'QuadraXReferee',
+            type: 'referee',
+            score: 980
+          }
+        }
+      }
+    }
+    
+    console.log('✅ REFEREE: No imminent multi-threat setups detected')
+  }
+  
   const criticalBlock = await referee.findBlockingMove(
     gamePosition.board,
     gamePosition.currentPlayer,
@@ -247,22 +317,8 @@ async function getASIAllianceDecision(gamePosition: GamePosition): Promise<Exten
   } else {
     console.log('✅ REFEREE: No critical opponent threats detected')
   }
-
-  // ===== HYBRID BULLETPROOF AI SYSTEM =====
-  // Combine QuadraXMasterStrategy with ASI Alliance Minimax for ultimate intelligence
-  console.log('🧠 HYBRID AI: Activating dual-layer analysis system...')
   
-  // Step 1: Get QuadraXMasterStrategy analysis (finite game analysis)
-  console.log('🧠 MASTER STRATEGY: Running complete finite game analysis...')
-  const masterMove = await referee.getMasterStrategicMove(
-    gamePosition.board,
-    gamePosition.currentPlayer,
-    gamePosition.possibleMoves,
-    gamePosition.phase
-  )
-  
-  // Step 2: Get ASI Alliance minimax analysis (4 agents with deep lookahead)
-  console.log('🤖 ASI ALLIANCE: Consulting 4 minimax agents for validation...')
+  // Consult all 4 agents for strategic analysis
   const agentDecisions = await consultAllAgents(gamePosition)
   
   if (agentDecisions.length === 0) {
@@ -271,48 +327,8 @@ async function getASIAllianceDecision(gamePosition: GamePosition): Promise<Exten
   
   console.log('🔍 Raw agent decisions before scoring:')
   agentDecisions.forEach(decision => {
-    console.log(`  ${decision.agent}: move ${decision.move}, confidence ${decision.confidence}, minimax: ${decision.minimaxScore}`)
+    console.log(`  ${decision.agent}: move ${decision.move}, confidence ${decision.confidence}`)
   })
-  
-  // Step 3: HYBRID VALIDATION - Both systems must validate each other
-  if (masterMove) {
-    console.log('🧠 MASTER STRATEGY: Strategic move identified!')
-    console.log(`🎯 MASTER MOVE: ${JSON.stringify(masterMove)}`)
-    
-    // Validate master strategy move with ASI Alliance agents
-    console.log('🔍 HYBRID VALIDATION: Checking if ASI Alliance agents agree with master strategy...')
-    
-    const agentValidation = agentDecisions.some(decision => {
-      const moveMatches = JSON.stringify(decision.move) === JSON.stringify(masterMove.move)
-      const isHighConfidence = decision.confidence >= 0.8
-      const hasGoodScore = decision.minimaxScore ? decision.minimaxScore > -200 : true
-      
-      console.log(`  ${decision.agent}: move match=${moveMatches}, confidence=${decision.confidence}, score=${decision.minimaxScore}`)
-      return moveMatches && isHighConfidence && hasGoodScore
-    })
-    
-    if (agentValidation) {
-      console.log('✅ HYBRID CONSENSUS: Master strategy validated by ASI Alliance! Using bulletproof move.')
-      return {
-        move: masterMove.move,
-        reasoning: `HYBRID BULLETPROOF: ${masterMove.reasoning} (Validated by ASI Alliance minimax)`,
-        confidence: 0.99,
-        agent: 'HybridBulletproofAI',
-        type: 'hybrid_master',
-        score: 1000,
-        agentCount: agentDecisions.length + 1,
-        refereeValidated: true,
-        timestamp: Date.now()
-      } as ExtendedAgentDecision
-    } else {
-      console.log('⚠️ HYBRID CONFLICT: Master strategy NOT validated by ASI Alliance. Using agent consensus instead.')
-    }
-  } else {
-    console.log('❌ MASTER STRATEGY: No strategic move found, relying on ASI Alliance analysis')
-  }
-
-  // Step 4: Use ASI Alliance consensus with enhanced validation
-  console.log('🤖 HYBRID FALLBACK: Using ASI Alliance minimax consensus with enhanced threat validation...')
   
   // Score and validate all decisions through referee
   const scoredDecisions = await Promise.all(
@@ -342,9 +358,6 @@ async function getASIAllianceDecision(gamePosition: GamePosition): Promise<Exten
     console.log(`  ${decision.agent}: move ${decision.move}, base score ${decision.score}, confidence ${decision.confidence}, bonus ${confidenceBonus.toFixed(1)}, final ${finalScore.toFixed(1)}`)
   })
   
-  // HYBRID THREAT VALIDATION: Additional safety check on final decision
-  console.log('🛡️ HYBRID SAFETY: Final threat validation on selected move...')
-  
   const bestDecision = scoredDecisions.reduce((best, current) => {
     const bestFinalScore = (best.score || 0) + ((best.confidence - 0.5) * 20)
     const currentFinalScore = (current.score || 0) + ((current.confidence - 0.5) * 20)
@@ -352,147 +365,14 @@ async function getASIAllianceDecision(gamePosition: GamePosition): Promise<Exten
     return currentFinalScore > bestFinalScore ? current : best
   })
   
-  // Final safety validation: Check if the best move creates any dangerous situations
-  console.log(`🔍 FINAL SAFETY CHECK: Validating move ${JSON.stringify(bestDecision.move)} for dangerous consequences...`)
-  
-  // Create a test board with the proposed move
-  const testBoard = [...gamePosition.board]
-  if (gamePosition.phase === 'placement') {
-    testBoard[bestDecision.move as number] = gamePosition.currentPlayer
-  } else {
-    const moveObj = bestDecision.move as { from: number; to: number }
-    testBoard[moveObj.from] = 0
-    testBoard[moveObj.to] = gamePosition.currentPlayer
-  }
-  
-  // Check if this move allows opponent to win immediately
-  const opponent = gamePosition.currentPlayer === 1 ? 2 : 1
-  const opponentCanWin = await referee.findWinningMove(
-    testBoard,
-    opponent,
-    getPossibleMoves(testBoard, gamePosition.phase === 'placement' ? 'placement' : 'movement', opponent),
-    gamePosition.phase === 'placement' ? 'placement' : 'movement'
-  )
-  
-  if (opponentCanWin) {
-    console.log('🚨 HYBRID SAFETY ALERT: Best move allows opponent to win! Finding safer alternative...')
-    
-    // Find safest alternative from remaining decisions
-    const saferDecisions = scoredDecisions.filter(decision => {
-      const altTestBoard = [...gamePosition.board]
-      if (gamePosition.phase === 'placement') {
-        altTestBoard[decision.move as number] = gamePosition.currentPlayer
-      } else {
-        const moveObj = decision.move as { from: number; to: number }
-        altTestBoard[moveObj.from] = 0
-        altTestBoard[moveObj.to] = gamePosition.currentPlayer
-      }
-      
-      // Quick check - would this move allow opponent win?
-      // (We'll use a simpler check here to avoid infinite validation)
-      return decision.score !== undefined && decision.score > -500
-    })
-    
-    if (saferDecisions.length > 0) {
-      const saferChoice = saferDecisions.reduce((best, current) => 
-        (current.score || 0) > (best.score || 0) ? current : best
-      )
-      console.log(`🛡️ HYBRID SAFETY: Using safer alternative from ${saferChoice.agent}`)
-      
-      return {
-        ...saferChoice,
-        reasoning: `HYBRID SAFETY OVERRIDE: ${saferChoice.reasoning} (Prevented opponent win)`,
-        confidence: Math.max(saferChoice.confidence, 0.85),
-        agent: 'HybridBulletproofAI',
-        type: 'hybrid_safety',
-        agentCount: scoredDecisions.length,
-        refereeValidated: true,
-        timestamp: Date.now()
-      } as ExtendedAgentDecision
-    }
-  } else {
-    console.log('✅ HYBRID SAFETY: Move validated as safe!')
-  }
-  
-  console.log('🏆 HYBRID AI Final Decision:', {
+  console.log('🏆 ASI Alliance Final Decision:', {
     agent: bestDecision.agent,
     move: bestDecision.move,
     score: bestDecision.score,
-    confidence: bestDecision.confidence,
-    minimax: bestDecision.minimaxScore
+    confidence: bestDecision.confidence
   })
   
-  // ULTIMATE VALIDATION: Hybrid Bulletproof Validator final check
-  console.log('🛡️ ULTIMATE VALIDATION: Running final bulletproof analysis...')
-  const finalValidation = await hybridValidator.validateMove(
-    gamePosition,
-    bestDecision.move,
-    gamePosition.currentPlayer
-  )
-  
-  if (finalValidation.recommendation === 'reject') {
-    console.log('🚨 ULTIMATE VALIDATION FAILED: Move rejected by bulletproof validator!')
-    console.log(`🚨 Rejection reason: ${finalValidation.reasoning}`)
-    
-    // Find alternative from remaining decisions
-    const safeAlternatives = scoredDecisions.filter(decision => decision !== bestDecision)
-    
-    if (safeAlternatives.length > 0) {
-      // Test alternatives with validator
-      for (const alternative of safeAlternatives) {
-        const altValidation = await hybridValidator.validateMove(
-          gamePosition,
-          alternative.move,
-          gamePosition.currentPlayer
-        )
-        
-        if (altValidation.recommendation === 'approve') {
-          console.log(`✅ SAFE ALTERNATIVE FOUND: Using ${alternative.agent} recommendation`)
-          return {
-            ...alternative,
-            reasoning: `BULLETPROOF OVERRIDE: ${alternative.reasoning} (Original move rejected: ${finalValidation.reasoning})`,
-            agent: `BulletproofAI(${alternative.agent})`,
-            confidence: Math.max(alternative.confidence, 0.80),
-            agentCount: scoredDecisions.length,
-            refereeValidated: true,
-            hybridValidated: true,
-            timestamp: Date.now()
-          } as ExtendedAgentDecision
-        }
-      }
-    }
-    
-    // If no safe alternatives found, use emergency fallback
-    console.log('🆘 EMERGENCY: No safe alternatives found, using first available move')
-    const emergencyMove = gamePosition.possibleMoves[0]
-    return {
-      move: emergencyMove,
-      reasoning: `EMERGENCY FALLBACK: All strategic moves rejected by bulletproof validator. Using safest available move.`,
-      confidence: 0.50,
-      agent: 'BulletproofEmergencyAI',
-      type: 'emergency',
-      score: 0,
-      agentCount: 0,
-      refereeValidated: false,
-      hybridValidated: false,
-      timestamp: Date.now()
-    } as ExtendedAgentDecision
-  }
-  
-  console.log(`✅ ULTIMATE VALIDATION PASSED: ${finalValidation.reasoning}`)
-  
-  // Return final decision with complete validation
-  return {
-    ...bestDecision,
-    reasoning: `BULLETPROOF VALIDATED: ${bestDecision.reasoning} (${finalValidation.reasoning})`,
-    agent: `BulletproofAI(${bestDecision.agent})`,
-    confidence: Math.max(bestDecision.confidence, 0.85),
-    agentCount: scoredDecisions.length,
-    refereeValidated: true,
-    hybridValidated: true,
-    validationLevel: finalValidation.dangerLevel,
-    timestamp: Date.now()
-  } as ExtendedAgentDecision
+  return bestDecision
 }
 
 /**

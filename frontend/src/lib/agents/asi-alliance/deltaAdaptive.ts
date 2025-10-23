@@ -1,47 +1,60 @@
-// Delta Adaptive Agent - ASI Alliance Adaptive Intelligence with Ollama Fallback
-// Specialized in pattern recognition, counter-strategy, and real-time learning
+// Delta Adaptive Agent - ASI Alliance Enhanced Adaptive Intelligence
+// Specialized in comprehensive analysis, balanced strategy, and intelligent adaptation
 
 import { callASIAllianceWithFallback, parseASIResponse } from '../../services/asiService'
+import { findCriticalBlockingPositions, findAllWinningMoves } from '../../utils/quadraX/gameLogic'
+import { QuadraXMinimaxEngine } from './minimaxEngine'
 import type { GamePosition, AgentDecision, OpponentProfile } from './types'
 
 export class DeltaAdaptive {
   public readonly name = 'DeltaAdaptive'
   public readonly type = 'adaptive'
-  public readonly personality = 'flexible'
-  public readonly focus = 'PATTERN RECOGNITION & COUNTER-STRATEGY'
+  public readonly personality = 'adaptive' as const
+  public readonly focus = 'MINIMAX ADAPTIVE ANALYSIS & PATTERN RECOGNITION'
   
   /**
-   * Generate adaptive analysis for QuadraX moves
+   * Generate adaptive analysis for QuadraX moves using Minimax engine
    */
   async selectQuadraXMove(
     gamePosition: GamePosition,
     opponentProfile: OpponentProfile,
     timeRemaining: number
   ): Promise<AgentDecision> {
-    console.log(`🔄 ${this.name}: Analyzing adaptive position via ASI Alliance...`)
+    console.log(`🔄 ${this.name}: Analyzing adaptive position with MINIMAX engine...`)
     
-    try {
-      const prompt = this.createAdaptivePrompt(gamePosition, opponentProfile)
-      const response = await callASIAllianceWithFallback(prompt, 'delta', {
-        board: gamePosition.board,
-        phase: gamePosition.phase,
-        currentPlayer: gamePosition.currentPlayer,
-        availableMoves: gamePosition.possibleMoves
-      })
-      const parsed = parseASIResponse(response, gamePosition)
-      
-      return {
-        move: parsed.move,
-        confidence: parsed.confidence || 0.85,
-        reasoning: `Adaptive Analysis: ${parsed.reasoning || response}`,
-        agent: this.name,
-        type: this.type,
-        tacticalAnalysis: parsed.tacticalAnalysis,
-        phaseStrategy: gamePosition.phase
-      }
-    } catch (error) {
-      console.error(`❌ ${this.name}: ASI Alliance call failed:`, error)
-      throw error
+    // Use Minimax engine for adaptive analysis
+    const minimaxResult = QuadraXMinimaxEngine.getBestMove(gamePosition, 4, this.personality)
+    
+    // Get detailed analysis of the chosen move
+    const moveAnalysis = QuadraXMinimaxEngine.analyzeMove(gamePosition, minimaxResult.move, this.personality)
+    
+    // Determine confidence based on minimax score and adaptive analysis
+    let confidence = 0.85
+    if (minimaxResult.isWinning) confidence = 1.0  // Maximum confidence for winning moves
+    else if (minimaxResult.isBlocking) confidence = 0.92  // High confidence for blocking moves
+    else if (minimaxResult.score > 600) confidence = 0.94  // High confidence for strong positions
+    else if (minimaxResult.score > 200) confidence = 0.90  // Good position
+    else if (minimaxResult.score < -400) confidence = 0.78  // Poor position
+    
+    // Determine move type based on analysis - adaptive agents balance all types
+    let moveType: 'offensive' | 'defensive' | 'strategic' = 'strategic'
+    if (minimaxResult.isWinning) moveType = 'offensive'
+    else if (minimaxResult.isBlocking) moveType = 'defensive'
+    else if (minimaxResult.score > 400) moveType = 'offensive'  // Strong offensive position
+    else if (minimaxResult.score < -200) moveType = 'defensive'  // Need defensive play
+    else moveType = 'strategic'  // Balanced strategic play
+    
+    console.log(`🔄 ${this.name}: MINIMAX selected adaptive move with score ${minimaxResult.score}`)
+    
+    return {
+      move: minimaxResult.move,
+      confidence,
+      reasoning: `MINIMAX ADAPTIVE: ${moveAnalysis.reasoning} (Score: ${minimaxResult.score}, Depth: ${minimaxResult.depth})`,
+      agent: this.name,
+      type: moveType,
+      tacticalAnalysis: `Minimax depth ${minimaxResult.depth}: ${minimaxResult.reasoning}`,
+      phaseStrategy: gamePosition.phase,
+      minimaxScore: minimaxResult.score
     }
   }
 
@@ -50,107 +63,107 @@ export class DeltaAdaptive {
    */
   private createAdaptivePrompt(gamePosition: GamePosition, opponentProfile: OpponentProfile): string {
     const { board, phase, possibleMoves, moveHistory } = gamePosition
+    const adaptationAnalysis = this.analyzeAdaptationNeeds(board)
+    const dynamicStrategy = this.calculateDynamicStrategy(board, possibleMoves, phase)
     
-    return `🔄 DELTA ADAPTIVE - QuadraX 4x4 EVOLVING Counter-Intelligence with Predictive Analysis
+    return `You are Delta Adaptive. MISSION: ADAPT & EVOLVE to dominate any situation!
 
-**QUADRAX ADAPTIVE RULES:**
-• 4×4 board with unique 2×2 square dynamics
-• 4 pieces per player = resource management critical
-• Opponent Profile: ${opponentProfile.playStyle} style, ${opponentProfile.skillLevel} level
-• Advanced Adaptation: Predict opponent's next 2-3 moves and counter them proactively
+CRITICAL BOARD ANALYSIS:
+Current board state: ${board.map((cell, idx) => `pos${idx}=${cell === 0 ? 'empty' : cell === 1 ? 'X' : 'O'}`).join(' ')}
+X pieces (you): ${board.map((cell, idx) => cell === 1 ? idx : null).filter(pos => pos !== null).join(', ')} 
+O pieces (opponent): ${board.map((cell, idx) => cell === 2 ? idx : null).filter(pos => pos !== null).join(', ')}
+Phase: ${phase} | Valid moves: ${possibleMoves.map((m: any) => typeof m === 'object' ? `${m.from}→${m.to}` : m).join(', ')}
 
-**ADAPTIVE BOARD STATE**:
-Board: ${board.map((cell, idx) => `${idx}:${cell === 0 ? '·' : cell === 1 ? 'X' : 'O'}`).join(' ')}
-Phase: ${phase} | Moves: ${moveHistory?.length || 0}
-Available: ${possibleMoves.map((m: any) => typeof m === 'object' ? `${m.from}→${m.to}` : m).join(', ')}
+ADAPTATION ANALYSIS: ${adaptationAnalysis}
+DYNAMIC STRATEGY: ${dynamicStrategy}
 
-**ADVANCED OPPONENT PATTERN ANALYSIS**:
-• Preferred positions: ${opponentProfile.preferredPositions?.join(', ') || 'analyzing...'}
-• Play style: ${opponentProfile.playStyle} (${opponentProfile.winRate * 100}% win rate)
-• Behavioral prediction: ${opponentProfile.playStyle === 'aggressive' ? 'Likely to create multiple threats, vulnerable to counter-attacks' : 
-                         opponentProfile.playStyle === 'defensive' ? 'Reactive player, exploit with tempo and forcing moves' :
-                         opponentProfile.playStyle === 'strategic' ? 'Plans ahead, disrupt with unpredictable tactical shots' :
-                         'Unpredictable style, use comprehensive threat analysis'}
+Opponent Profile: ${opponentProfile.playStyle} style (${moveHistory?.length || 0} moves made)
+Recent patterns: ${moveHistory?.slice(-3).join(' → ') || 'None yet'}
 
-**DELTA EVOLVING PRIORITIES**:
-1. **ADVANCED COUNTER-STRATEGY**: ${opponentProfile.playStyle === 'aggressive' ? 'Bait them into overcommitment, then exploit the resulting weaknesses with precise defensive counters' :
-                                   opponentProfile.playStyle === 'defensive' ? 'Create complex multi-threat scenarios they cannot defend passively, force active decision-making' :
-                                   opponentProfile.playStyle === 'strategic' ? 'Introduce chaos and tactical complications to disrupt their long-term planning' :
-                                   'Dynamically adjust between aggressive pressure and defensive solidity based on their current approach'}
+2×2 squares: [0,1,4,5] [1,2,5,6] [2,3,6,7] [4,5,8,9] [5,6,9,10] [6,7,10,11] [8,9,12,13] [9,10,13,14] [10,11,14,15]
 
-**PREDICTIVE PATTERN RECOGNITION**:
-- **Move Sequence Prediction**: Based on opponent's ${moveHistory?.length || 0} moves, what are their next 3 most likely moves?
-- **Weakness Exploitation**: Where has opponent shown poor QuadraX understanding? Target those blind spots!
-- **Setup Detection**: Are they building toward a specific 2×2 square pattern? Counter it before they complete the setup!
-- **Style Evolution**: Has their play style changed during this game? Adapt our counter-strategy accordingly!
+MOVEMENT RULE: Pieces can move to ANY empty position on the board!
 
-**SOPHISTICATED ADAPTATION TACTICS**:
-- **Mirror & Misdirect**: Copy their opening pattern, then suddenly shift to opposite strategy
-- **Tempo Manipulation**: Speed up or slow down game pace to match/counter their comfort zone
-- **Psychology Warfare**: Create positions that trigger their known behavioral patterns, then punish those patterns
-- **Resource Management**: Force them to exhaust their defensive resources while preserving ours for the decisive strike
+ADAPTIVE INTELLIGENCE PROTOCOL:
+1. PATTERN RECOGNITION: Identify opponent's playing style and counter it instantly
+2. TACTICAL FLEXIBILITY: Switch between offensive/defensive based on real-time board state
+3. PREDICTION MATRIX: Calculate multiple future scenarios and pick optimal survival path
+4. EVOLUTION MODE: Adapt strategy based on what's working vs what's failing
 
-2. **PREDICTIVE 2×2 SQUARE COUNTER-ADAPTATION**: 
-   - Identify ALL 2×2 squares opponent is targeting or could target
-   - Counter their setup before they realize we've detected their pattern
-   - Create "honeypot" positions that look good but are actually traps
+STRATEGIC COUNTER-ADAPTATION:
+- If opponent plays aggressively: COUNTER with defensive positioning and smart traps
+- If opponent plays defensively: OVERWHELM with multi-front coordinated attacks  
+- If game is even: CREATE CONTROLLED CHAOS and force opponent into uncomfortable positions
+- Always look 3 moves ahead and predict opponent's most likely response patterns
 
-3. **DYNAMIC PHASE-SPECIFIC ADAPTATION**: 
-   ${phase === 'placement' ? '• Placement Phase: Mirror their early positioning to learn their strategy, then pivot to counter it\n   • Position pieces to deny their preferred 2×2 squares while setting up flexible movement options' : 
-   '• Movement Phase: Analyze their piece mobility patterns and block their best movement corridors\n   • Create movement sequences that force them into disadvantageous positions'}
+ADAPTIVE GOALS:
+1. Analyze the 3 most dangerous things opponent can do next
+2. Counter their strongest possible sequences while building your own threats
+3. Stay unpredictable - change tactics when they start to counter you
+4. Force opponent to react to YOUR plans instead of executing theirs
 
-4. **MULTI-LAYERED PSYCHOLOGICAL WARFARE**:
-   - Bait them into making moves that feel strong but create vulnerabilities
-   - Use reverse psychology - appear to defend one area while secretly setting up elsewhere
-   - Create time pressure through complex positions that require deep thinking
+Think like a master chess player: Read their mind, counter their strategy, stay 3 steps ahead!
 
-**COMPREHENSIVE ADAPTIVE ANALYSIS**:
-- **PATTERN DETECTION**: What consistent 2×2 square preferences has opponent shown?
-- **COUNTER-STRATEGY**: How to disrupt their ${opponentProfile.playStyle} approach while advancing our position?
-- **TACTICAL ADAPTATION**: Should we play aggressive, defensive, strategic, or chaos-style this turn?
-- **EXPLOITATION MATRIX**: What weakness does their preferred position pattern reveal for our next 3 moves?
-- **WIN CONDITION ANALYSIS**: Are they closer to winning? Adapt urgency level accordingly!
+{"move": ${phase === 'placement' ? 'position' : '{"from": X, "to": Y}'}, "confidence": 0.94, "reasoning": "adaptive_evolution"}`
+  }
 
-**DELTA SUPREME FLEXIBILITY PROTOCOL**:
-• **Winning Position** → Maintain control through adaptive defense, deny opponent all comeback paths
-• **Losing Position** → Take calculated risks with adaptive aggression, create chaos they can't handle  
-• **Equal Position** → Apply maximum psychological pressure through unpredictable adaptive play
-• **Always** → Evolve strategy based on opponent's revealed patterns, stay 2 moves ahead of their thinking
+  private analyzeAdaptationNeeds(board: number[]): string {
+    const squares = [[0,1,4,5], [1,2,5,6], [2,3,6,7], [4,5,8,9], [5,6,9,10], [6,7,10,11], [8,9,12,13], [9,10,13,14], [10,11,14,15]]
+    
+    // Count pieces and analyze game state
+    const myPieces = board.filter(cell => cell === 1).length
+    const opponentPieces = board.filter(cell => cell === 2).length
+    
+    // Analyze control of squares
+    const myControl = squares.filter(square => {
+      const myCount = square.filter(pos => board[pos] === 1).length
+      const opponentCount = square.filter(pos => board[pos] === 2).length
+      return myCount > opponentCount
+    }).length
+    
+    const opponentControl = squares.filter(square => {
+      const myCount = square.filter(pos => board[pos] === 1).length
+      const opponentCount = square.filter(pos => board[pos] === 2).length
+      return opponentCount > myCount
+    }).length
+    
+    if (opponentControl > myControl) {
+      return `BEHIND: Opponent controls ${opponentControl} vs our ${myControl} squares. ADAPT: Switch to aggressive disruption!`
+    }
+    if (myControl > opponentControl) {
+      return `AHEAD: We control ${myControl} vs opponent's ${opponentControl} squares. ADAPT: Maintain pressure while defending!`
+    }
+    return `EVEN: Equal control (${myControl}-${opponentControl}). ADAPT: Create chaos and force mistakes!`
+  }
 
-**ADVANCED TACTICAL ADAPTATION**:
-- **Style Morphing**: Start playing like their expected counter, then suddenly shift to exploit their counter-preparation
-- **Threat Prioritization**: Adapt threat assessment based on their demonstrated defensive capabilities  
-- **Endgame Planning**: ${phase === 'placement' ? 'Plan placement for maximum movement phase adaptation options' : 'Execute movement patterns they cannot predict or counter'}
-
-Respond with: {"move": ${phase === 'placement' ? 'position_number' : '{"from": X, "to": Y}'}, "confidence": 0.0-1.0, "reasoning": "comprehensive_adaptive_counter_analysis"}
-
-You are Delta Adaptive, an autonomous QuadraX agent with advanced pattern recognition and opponent modeling.
-
-OBJECTIVE: Use contextual memory and adaptive reasoning to counter opponent strategies dynamically.
-
-GAME STATE:
-- Board: ${board.map((cell, idx) => `${idx}:${cell === 0 ? '·' : cell === 1 ? 'X' : 'O'}`).join(' ')}
-- Phase: ${phase}
-- Available moves: ${possibleMoves.map((m: any) => typeof m === 'object' ? `${m.from}→${m.to}` : m).join(', ')}
-- Move history: ${moveHistory?.length || 0} moves
-- Opponent profile: ${opponentProfile.playStyle} style, ${opponentProfile.skillLevel} level
-
-ADAPTIVE MISSION:
-1. Pattern recognition: Analyze opponent's placement/movement preferences
-2. Counter-strategy evolution: Adapt our approach based on their revealed patterns  
-3. Psychological modeling: Predict their next 2-3 moves based on established behavior
-4. Dynamic optimization: Choose moves that exploit their demonstrated weaknesses
-
-AUTONOMOUS ADAPTATION:
-Use your contextual memory to:
-- Track opponent's 2×2 square priorities and counter them preemptively
-- Identify their blind spots and tactical errors from previous moves
-- Adapt between aggressive/defensive/strategic approaches based on game state
-- Create unpredictable positions that disrupt their established patterns
-
-Execute evolving analysis: learn from every opponent move and continuously optimize our counter-strategy.
-
-OUTPUT FORMAT: {"move": ${phase === 'placement' ? 'number' : '{"from": X, "to": Y}'}, "confidence": 0.0-1.0, "reasoning": "autonomous_adaptive_analysis"}`
+  private calculateDynamicStrategy(board: number[], possibleMoves: any[], phase: string): string {
+    const squares = [[0,1,4,5], [1,2,5,6], [2,3,6,7], [4,5,8,9], [5,6,9,10], [6,7,10,11], [8,9,12,13], [9,10,13,14], [10,11,14,15]]
+    
+    // Check for immediate threats or opportunities
+    const myWinThreats = squares.filter(square => {
+      const myCount = square.filter(pos => board[pos] === 1).length
+      const emptyCount = square.filter(pos => board[pos] === 0).length
+      return myCount >= 3 && emptyCount === 1
+    }).length
+    
+    const opponentWinThreats = squares.filter(square => {
+      const opponentCount = square.filter(pos => board[pos] === 2).length
+      const emptyCount = square.filter(pos => board[pos] === 0).length
+      return opponentCount >= 3 && emptyCount === 1
+    }).length
+    
+    if (myWinThreats > 0) {
+      return `WINNING MODE: ${myWinThreats} win opportunity(ies)! Execute immediately!`
+    }
+    if (opponentWinThreats > 0) {
+      return `CRISIS MODE: ${opponentWinThreats} opponent win threat(s)! Block then counter-attack!`
+    }
+    
+    // Adaptive strategy based on phase and board state
+    if (phase === 'placement') {
+      return `BUILD MODE: Focus on center control and multi-square positions for maximum flexibility`
+    }
+    return `TACTICAL MODE: Use unrestricted movement to create unexpected threats and disrupt opponent plans`
   }
 
   /**

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Board, GameInfo, AIChat } from '@/features/game'
+import StakeNegotiationChat from '@/features/game/StakeNegotiationChat'
 import StakingPanel from '@/features/staking/StakingPanel'
 import { IntelligentStakingPanel } from '@/features/staking/IntelligentStakingSystem'
 import { useGameWithIntelligentStaking } from '@/features/game/CompleteGameIntegration'
@@ -73,16 +74,57 @@ export default function GamePage() {
   
   // Update game position when board changes (for AI commentary)
   useEffect(() => {
+    // 🔥 CRITICAL CHECK: Detect existing wins before any other processing
+    console.log('🎯 USEEFFECT: Board state check at start - Game Phase:', gamePhase)
+    console.log('🎲 USEEFFECT: Current board:', board.map((c, i) => `${i}:${c === 0 ? '·' : c === 1 ? 'X' : 'O'}`).join(' '))
+    console.log('🎮 USEEFFECT: Current player:', currentPlayer)
+    
+    // ALWAYS check for wins regardless of game phase
+    console.log('🔍 USEEFFECT: Calling checkWinner for Player 1...')
+    const player1Won = checkWinner(board, 1)
+    console.log('🔍 USEEFFECT: Player 1 win result:', player1Won)
+    
+    if (player1Won) {
+      console.log('🏆 USEEFFECT: Player 1 has ALREADY WON! Ending game immediately.')
+      setGamePhase('finished')
+      setTimeout(() => {
+        alert(`🎉 You win!${!isDemoMode ? `\n💰 Payout: ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD` : ''}`)
+      }, 100)
+      return
+    }
+    
+    console.log('🔍 USEEFFECT: Calling checkWinner for Player 2...')
+    const player2Won = checkWinner(board, 2)
+    console.log('🔍 USEEFFECT: Player 2 win result:', player2Won)
+    
+    if (player2Won) {
+      console.log('🤖 USEEFFECT: Player 2 has ALREADY WON! Ending game immediately.')
+      setGamePhase('finished')
+      setTimeout(() => {
+        alert('🤖 AI wins!')
+      }, 100)
+      return
+    }
+    
+    const player1Pieces = board.filter(cell => cell === 1).length
+    const player2Pieces = board.filter(cell => cell === 2).length
+    const totalPieces = player1Pieces + player2Pieces
+    
+    console.log('🎯 USEEFFECT: Piece count - P1:', player1Pieces, 'P2:', player2Pieces, 'Total:', totalPieces)
+    
+    // Determine current phase based on pieces placed
+    const currentPhase = totalPieces < 8 ? 'placement' : 'movement'
+    
     setGamePosition({
       board,
-      phase: 'placement',
+      phase: currentPhase, // ✅ FIXED: Dynamic phase detection
       piecesPlaced: {
-        player1: board.filter(cell => cell === 1).length,
-        player2: board.filter(cell => cell === 2).length
+        player1: player1Pieces,
+        player2: player2Pieces
       },
       currentPlayer
     })
-  }, [board, currentPlayer])
+  }, [board, currentPlayer, gamePhase, isDemoMode, pot])
 
   // === PHASE 1: NEGOTIATION HANDLERS ===
   const handleNegotiationComplete = (stake: number | null, demo: boolean) => {
@@ -113,6 +155,33 @@ export default function GamePage() {
   
   // === STRATEGIC 4x4 QUADRAX GAMEPLAY ===
   const handleCellClick = (index: number) => {
+    console.log('🎯 CELL CLICK: Player clicked cell', index)
+    console.log('🎮 CELL CLICK: Game phase:', gamePhase, 'Current player:', currentPlayer)
+    
+    // 🚨 EMERGENCY WIN CHECK: Before processing any move, check if game should have ended
+    console.log('🚨 CELL EMERGENCY: Testing for existing wins before processing click...')
+    console.log('🎲 CELL EMERGENCY: Board:', board.map((c, i) => `${i}:${c === 0 ? '·' : c === 1 ? 'X' : 'O'}`).join(' '))
+    
+    if (checkWinner(board, 1)) {
+      console.log('🏆 CELL EMERGENCY: Player 1 has ALREADY WON! Game should have ended!')
+      setGamePhase('finished')
+      setTimeout(() => {
+        alert(`🎉 You win!${!isDemoMode ? `\n💰 Payout: ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD` : ''}`)
+      }, 100)
+      return
+    }
+    
+    if (checkWinner(board, 2)) {
+      console.log('🤖 CELL EMERGENCY: Player 2 has ALREADY WON! Game should have ended!')
+      setGamePhase('finished')
+      setTimeout(() => {
+        alert('🤖 AI wins!')
+      }, 100)
+      return
+    }
+    
+    console.log('✅ CELL EMERGENCY: No existing wins detected, proceeding with move...')
+    
     if (gamePhase !== 'gameplay' || currentPlayer !== 1) return
 
     const player1Pieces = board.filter(cell => cell === 1).length
@@ -127,17 +196,23 @@ export default function GamePage() {
       newBoard[index] = 1 // Player 1 places X
       setBoard(newBoard)
 
-      // Check for winner after placement (only if both players have placed all pieces)
+      // Check for winner after placement (can win anytime during placement!)
       const newPlayer1Count = newBoard.filter(cell => cell === 1).length
       const newPlayer2Count = newBoard.filter(cell => cell === 2).length
       
-      if (newPlayer1Count === 4 && newPlayer2Count === 4 && checkWinner(newBoard, 1)) {
+      console.log('🎯 WIN CHECK: After player placement, checking for player 1 win...')
+      console.log('🎲 WIN CHECK: Board:', newBoard.map((c, i) => `${i}:${c === 0 ? '·' : c === 1 ? 'X' : 'O'}`).join(' '))
+      
+      if (checkWinner(newBoard, 1)) {
+        console.log('🏆 PLAYER WINS! Game ending...')
         setGamePhase('finished')
         // Delay alert to allow board to visually update
         setTimeout(() => {
           alert(`🎉 You win during placement!${!isDemoMode ? `\n💰 Payout: ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD` : ''}`)
         }, 100)
         return
+      } else {
+        console.log('❌ WIN CHECK: No win detected for player 1')
       }
 
       // Check if placement phase is complete
@@ -177,13 +252,19 @@ export default function GamePage() {
           setSelectedCell(null)
 
           // Check for winner after movement
+          console.log('🎯 WIN CHECK: After player movement, checking for player 1 win...')
+          console.log('🎲 WIN CHECK: Board:', newBoard.map((c, i) => `${i}:${c === 0 ? '·' : c === 1 ? 'X' : 'O'}`).join(' '))
+          
           if (checkWinner(newBoard, 1)) {
+            console.log('🏆 PLAYER WINS! Game ending...')
             setGamePhase('finished')
             // Delay alert to allow board to visually update
             setTimeout(() => {
               alert(`🎉 You win!${!isDemoMode ? `\n💰 Payout: ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD` : ''}`)
             }, 100)
             return
+          } else {
+            console.log('❌ WIN CHECK: No win detected for player 1')
           }
 
           // Switch to AI turn
@@ -199,6 +280,9 @@ export default function GamePage() {
   }
 
   const checkWinner = (board: number[], player: number): boolean => {
+    console.log(`🔍 WIN DETECTION: Starting checkWinner for player ${player}`)
+    console.log(`🎲 WIN DETECTION: Board state:`, board.map((c, i) => `${i}:${c === 0 ? '·' : c === 1 ? 'X' : 'O'}`).join(' '))
+    
     // Horizontal (4 rows)
     for (let row = 0; row < 4; row++) {
       const start = row * 4
@@ -208,6 +292,7 @@ export default function GamePage() {
         board[start + 2] === player &&
         board[start + 3] === player
       ) {
+        console.log(`🏆 WIN DETECTION: Found horizontal line for player ${player} at row ${row}:`, [start, start+1, start+2, start+3])
         return true
       }
     }
@@ -220,6 +305,7 @@ export default function GamePage() {
         board[col + 8] === player &&
         board[col + 12] === player
       ) {
+        console.log(`🏆 WIN DETECTION: Found vertical line for player ${player} at col ${col}:`, [col, col+4, col+8, col+12])
         return true
       }
     }
@@ -231,6 +317,7 @@ export default function GamePage() {
       board[10] === player &&
       board[15] === player
     ) {
+      console.log(`🏆 WIN DETECTION: Found diagonal (TL-BR) for player ${player}:`, [0, 5, 10, 15])
       return true
     }
 
@@ -241,6 +328,7 @@ export default function GamePage() {
       board[9] === player &&
       board[12] === player
     ) {
+      console.log(`🏆 WIN DETECTION: Found diagonal (TR-BL) for player ${player}:`, [3, 6, 9, 12])
       return true
     }
 
@@ -254,11 +342,13 @@ export default function GamePage() {
           board[topLeft + 4] === player &&
           board[topLeft + 5] === player
         ) {
+          console.log(`🏆 WIN DETECTION: Found 2x2 square for player ${player} at position ${topLeft}:`, [topLeft, topLeft+1, topLeft+4, topLeft+5])
           return true
         }
       }
     }
 
+    console.log(`❌ WIN DETECTION: No win found for player ${player}`)
     return false
   }
 
@@ -327,10 +417,41 @@ export default function GamePage() {
 
   const getAIMovement = async (board: number[], aiPieces: number[]): Promise<{from: number, to: number} | null> => {
     console.log('🔄 AI Movement Request:', { board, aiPieces })
+    console.log('🎲 CRITICAL DEBUG: Board state:', board.map((c, i) => `${i}:${c === 0 ? '·' : c === 1 ? 'X' : 'O'}`).join(' '))
+    console.log('🤖 CRITICAL DEBUG: AI pieces (Player 2):', aiPieces)
+    console.log('👤 CRITICAL DEBUG: Human pieces (Player 1):', board.map((cell, index) => cell === 1 ? index : null).filter(i => i !== null))
+    
+    // 🚨 CRITICAL: Position Abandonment Analysis
+    console.log('🚨 ABANDONMENT CHECK: Analyzing if moving FROM any AI position enables opponent wins...')
+    for (const aiPosition of aiPieces) {
+      // Simulate AI piece leaving this position
+      const testBoard = [...board]
+      testBoard[aiPosition] = 0 // Remove AI piece temporarily
+      
+      // Check if opponent can win by moving to the abandoned position
+      testBoard[aiPosition] = 1 // Test if player can win here
+      
+      if (checkWinner(testBoard, 1)) {
+        console.log(`🚨 CRITICAL THREAT: If AI moves FROM position ${aiPosition}, player can win by moving TO position ${aiPosition}!`)
+        console.log(`🛡️ BLOCKING ABANDONMENT: Position ${aiPosition} is FORBIDDEN to vacate!`)
+        
+        // Remove this position from possible moves
+        aiPieces = aiPieces.filter(pos => pos !== aiPosition)
+        console.log('🔒 PROTECTED POSITIONS: AI cannot move from position', aiPosition)
+      } else {
+        console.log(`✅ SAFE TO VACATE: Position ${aiPosition} can be safely abandoned`)
+      }
+      
+      // Restore board
+      testBoard[aiPosition] = 2
+    }
+    
+    console.log('✅ ABANDONMENT ANALYSIS COMPLETE: Safe pieces to move:', aiPieces)
     
     // Get all possible moves
     const possibleMoves = []
     const emptySpaces = board.map((cell, index) => cell === 0 ? index : null).filter(i => i !== null) as number[]
+    console.log('🎯 CRITICAL DEBUG: Empty spaces:', emptySpaces)
     
     for (const piece of aiPieces) {
       for (const target of emptySpaces) {
@@ -339,6 +460,14 @@ export default function GamePage() {
     }
 
     console.log('🎯 Possible AI Movements:', possibleMoves.length, 'options')
+    console.log('🎯 CRITICAL DEBUG: Sample moves:', possibleMoves.slice(0, 5).map(m => `${m.from}→${m.to}`).join(', '))
+
+    // Check if any moves are possible after abandonment filtering
+    if (possibleMoves.length === 0) {
+      console.log('🚨 NO SAFE MOVES: All AI positions are required to block opponent wins!')
+      console.log('🏃 EMERGENCY: AI cannot move without allowing player to win')
+      return null
+    }
 
     try {
       // Query Enhanced ASI Alliance for movement
@@ -349,7 +478,8 @@ export default function GamePage() {
           board: board,
           phase: 'movement',
           currentPlayer: 2,
-          placedPieces: { 1: board.filter(cell => cell === 1).length, 2: board.filter(cell => cell === 2).length }
+          placedPieces: { 1: board.filter(cell => cell === 1).length, 2: board.filter(cell => cell === 2).length },
+          safePieces: aiPieces  // 🚨 CRITICAL: Send only the safe pieces that can be moved
         })
       })
 
@@ -378,6 +508,31 @@ export default function GamePage() {
   const makeAIPlacement = async (currentBoard: number[]) => {
     console.log('🤖 AI Placement Turn Started')
     console.log('🔍 DEBUG - Current board passed to makeAIPlacement:', currentBoard)
+    
+    // 🚨 EMERGENCY WIN CHECK: Before AI does anything, check if game should have ended
+    console.log('🚨 EMERGENCY CHECK: Testing for existing wins before AI move...')
+    console.log('🎲 EMERGENCY: Board:', currentBoard.map((c, i) => `${i}:${c === 0 ? '·' : c === 1 ? 'X' : 'O'}`).join(' '))
+    
+    if (checkWinner(currentBoard, 1)) {
+      console.log('🏆 EMERGENCY: Player 1 has ALREADY WON! Game should have ended!')
+      setGamePhase('finished')
+      setTimeout(() => {
+        alert(`🎉 You win!${!isDemoMode ? `\n💰 Payout: ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD` : ''}`)
+      }, 100)
+      return
+    }
+    
+    if (checkWinner(currentBoard, 2)) {
+      console.log('🤖 EMERGENCY: Player 2 has ALREADY WON! Game should have ended!')
+      setGamePhase('finished')
+      setTimeout(() => {
+        alert('🤖 AI wins!')
+      }, 100)
+      return
+    }
+    
+    console.log('✅ EMERGENCY: No existing wins detected, proceeding with AI turn...')
+    
     console.log('🎨 DEBUG - Board visualization:')
     for (let i = 0; i < 4; i++) {
       const row = currentBoard.slice(i * 4, (i + 1) * 4)
@@ -399,15 +554,31 @@ export default function GamePage() {
     newBoard[aiMove] = 2 // AI places O
     setBoard(newBoard)
 
-    // Check for AI winner (only if both players have placed all pieces)
+    // Check for AI winner (can win anytime during placement!)
     const finalPlayer1Count = newBoard.filter(cell => cell === 1).length
     const finalPlayer2Count = newBoard.filter(cell => cell === 2).length
     
-    if (finalPlayer1Count === 4 && finalPlayer2Count === 4 && checkWinner(newBoard, 2)) {
+    console.log('🎯 WIN CHECK: After AI placement, checking for AI win...')
+    console.log('🎲 WIN CHECK: Board:', newBoard.map((c, i) => `${i}:${c === 0 ? '·' : c === 1 ? 'X' : 'O'}`).join(' '))
+    
+    if (checkWinner(newBoard, 2)) {
+      console.log('🤖 AI WINS! Game ending...')
       setGamePhase('finished')
       // Delay alert to allow board to visually update
       setTimeout(() => {
         alert('🤖 AI wins during placement!')
+      }, 100)
+      return
+    } else {
+      console.log('❌ WIN CHECK: No win detected for AI')
+    }
+    
+    // Also check if player won (in case of race condition)
+    if (checkWinner(newBoard, 1)) {
+      console.log('🏆 PLAYER WINS! (Detected after AI move) Game ending...')
+      setGamePhase('finished')
+      setTimeout(() => {
+        alert(`🎉 You win!${!isDemoMode ? `\n💰 Payout: ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD` : ''}`)
       }, 100)
       return
     }
@@ -437,11 +608,27 @@ export default function GamePage() {
     setBoard(newBoard)
 
     // Check for AI winner
+    console.log('🎯 WIN CHECK: After AI movement, checking for AI win...')
+    console.log('🎲 WIN CHECK: Board:', newBoard.map((c, i) => `${i}:${c === 0 ? '·' : c === 1 ? 'X' : 'O'}`).join(' '))
+    
     if (checkWinner(newBoard, 2)) {
+      console.log('🤖 AI WINS! Game ending...')
       setGamePhase('finished')
       // Delay alert to allow board to visually update
       setTimeout(() => {
         alert('🤖 AI wins!')
+      }, 100)
+      return
+    } else {
+      console.log('❌ WIN CHECK: No win detected for AI')
+    }
+    
+    // Also check if player won (in case of race condition)
+    if (checkWinner(newBoard, 1)) {
+      console.log('🏆 PLAYER WINS! (Detected after AI movement) Game ending...')
+      setGamePhase('finished')
+      setTimeout(() => {
+        alert(`🎉 You win!${!isDemoMode ? `\n💰 Payout: ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD` : ''}`)
       }, 100)
       return
     }
@@ -977,9 +1164,9 @@ export default function GamePage() {
               </div>
             </div>
 
-            {/* AI Chat */}
-            <AIChat 
-              aiName="QuadraX AI" 
+            {/* Stake Negotiation Chat */}
+            <StakeNegotiationChat 
+              aiName="PYUSD Stake Advisor" 
               enabled={true}
               gameId={gameId.toString()}
               gamePosition={gamePhase === 'gameplay' ? gamePosition : undefined}

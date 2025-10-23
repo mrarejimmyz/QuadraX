@@ -27,6 +27,7 @@ export interface AgentDecision {
   type: string
   tacticalAnalysis?: string
   phaseStrategy?: string
+  minimaxScore?: number
 }
 
 export interface ASIResponse {

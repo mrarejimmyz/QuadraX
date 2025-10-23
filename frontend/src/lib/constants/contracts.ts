@@ -7,27 +7,28 @@
 const primaryChain = process.env.NEXT_PUBLIC_PRIMARY_CHAIN || 'sepolia'
 const isSepoliaMode = primaryChain === 'sepolia'
 
+// Get contract addresses with fallbacks
+const getContractAddress = (sepoliaEnv: string, hederaEnv: string, fallback: string = '0x') => {
+  const address = isSepoliaMode 
+    ? process.env[sepoliaEnv] 
+    : process.env[hederaEnv];
+  return (address && address !== '0x') ? address as `0x${string}` : fallback as `0x${string}`;
+};
+
 export const CONTRACTS = {
   // 🎯 Dynamic contract selection based on primary chain
   TIC_TAC_TOE: {
-    address: (isSepoliaMode 
-      ? process.env.NEXT_PUBLIC_SEPOLIA_TICTACTOE 
-      : process.env.NEXT_PUBLIC_HEDERA_TICTACTOE
-    ) as `0x${string}` || '0x',
+    address: getContractAddress('NEXT_PUBLIC_SEPOLIA_TICTACTOE', 'NEXT_PUBLIC_HEDERA_TICTACTOE', '0x'),
     name: 'TicTacToe',
   },
   STAKING: {
-    address: (isSepoliaMode 
-      ? process.env.NEXT_PUBLIC_SEPOLIA_STAKING 
-      : process.env.NEXT_PUBLIC_HEDERA_STAKING
-    ) as `0x${string}` || '0x',
+    address: getContractAddress('NEXT_PUBLIC_SEPOLIA_STAKING', 'NEXT_PUBLIC_HEDERA_STAKING', '0x'),
     name: 'PYUSDStaking',
   },
   PYUSD: {
-    address: (isSepoliaMode 
-      ? process.env.NEXT_PUBLIC_PYUSD_SEPOLIA 
-      : process.env.NEXT_PUBLIC_PYUSD_TOKEN
-    ) as `0x${string}` || '0x',
+    address: isSepoliaMode 
+      ? '0xCaC524BcA292aaade2DF8A05cC58F0a65B1B3bB9' as `0x${string}` // Official PYUSD Sepolia
+      : getContractAddress('NEXT_PUBLIC_PYUSD_SEPOLIA', 'NEXT_PUBLIC_PYUSD_TOKEN', '0x'),
     name: 'PYUSD',
   },
   

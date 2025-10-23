@@ -8,52 +8,11 @@ import { usePublicClient, useWalletClient, useWriteContract, useReadContract } f
 import { useCallback, useState } from 'react';
 import { parseUnits, formatUnits } from 'viem';
 import { CONTRACTS } from '../constants/contracts';
+import { CONTRACT_ABIS, ERC20_ABI, PYUSD_STAKING_ABI, TIC_TAC_TOE_ABI } from '../constants/abis';
 import { useWallet } from './useWallet';
 import { useBalances } from './useBalances';
 
-// Contract ABIs (minimal for interaction)
-const TICTACTOE_ABI = [
-  {
-    name: 'makeMove',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'gameId', type: 'uint256' },
-      { name: 'position', type: 'uint8' }
-    ],
-    outputs: [],
-  },
-  {
-    name: 'createGame',
-    type: 'function', 
-    stateMutability: 'payable',
-    inputs: [],
-    outputs: [{ name: 'gameId', type: 'uint256' }],
-  },
-] as const;
-
-const STAKING_ABI = [
-  {
-    name: 'stake',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [{ name: 'amount', type: 'uint256' }],
-    outputs: [],
-  },
-] as const;
-
-const ERC20_ABI = [
-  {
-    name: 'approve',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'spender', type: 'address' },
-      { name: 'amount', type: 'uint256' }
-    ],
-    outputs: [{ type: 'bool' }],
-  },
-] as const;
+// Contract ABIs imported from centralized location
 
 export interface ContractOperationResult {
   success: boolean;
@@ -127,13 +86,13 @@ export function useContract() {
     );
   }, [contracts.pyusd, contracts.staking, executeTransaction]);
 
-  // Stake PYUSD
+  // Stake PYUSD tokens in a game
   const stakePyusd = useCallback(async (amount: string): Promise<ContractOperationResult> => {
-    const amountWei = parseUnits(amount, 6);
+    const amountWei = parseUnits(amount, 6); // PYUSD has 6 decimals
     
     return executeTransaction(
       contracts.staking,
-      STAKING_ABI,
+      PYUSD_STAKING_ABI,
       'stake',
       [amountWei]
     );
@@ -143,7 +102,7 @@ export function useContract() {
   const makeMove = useCallback(async (gameId: number, position: number): Promise<ContractOperationResult> => {
     return executeTransaction(
       contracts.ticTacToe,
-      TICTACTOE_ABI,
+      TIC_TAC_TOE_ABI,
       'makeMove',
       [gameId, position]
     );
@@ -153,7 +112,7 @@ export function useContract() {
   const createGame = useCallback(async (): Promise<ContractOperationResult> => {
     return executeTransaction(
       contracts.ticTacToe,
-      TICTACTOE_ABI,
+      TIC_TAC_TOE_ABI,
       'createGame'
     );
   }, [contracts.ticTacToe, executeTransaction]);

@@ -89,7 +89,7 @@ As ${agentType.toUpperCase()}, analyze this QuadraX position and choose the best
 QuadraX Rules:
 - 4x4 board with placement phase (8 pieces each) then movement phase
 - Win condition: Get 4 pieces in a 2x2 square
-- Movement: pieces move to adjacent empty squares
+- Movement: pieces can move to ANY empty square on the board
 
 Respond ONLY with this JSON format:
 {

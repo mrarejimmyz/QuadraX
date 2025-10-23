@@ -71,3 +71,4 @@ frontend/.env.production.local
 # Keeping these tracked for easy setup
 docs/GIT_AUTHENTICATION_SETUP.md
 README_OLD.md
+.env.sepolia
