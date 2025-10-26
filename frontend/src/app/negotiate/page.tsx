@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { useAccount } from 'wagmi'
+import { useAccount, useBalance } from 'wagmi'
+import { NegotiatorAgent, type NegotiationContext } from '@/lib/agents/asi-alliance'
 
 type Message = {
   role: 'user' | 'ai' | 'system'
@@ -15,26 +16,34 @@ type Message = {
 export default function NegotiatePage() {
   const router = useRouter()
   const { address, isConnected } = useAccount()
+  const { data: balanceData } = useBalance({
+    address: address,
+  })
   const [mounted, setMounted] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [proposedStake, setProposedStake] = useState<number | null>(null)
   const [agreedStake, setAgreedStake] = useState<number | null>(null)
+  const [negotiator, setNegotiator] = useState<NegotiatorAgent | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setMounted(true)
+    // Initialize ASI Negotiator Agent
+    const agent = new NegotiatorAgent()
+    setNegotiator(agent)
+    
     // Initial greeting from AI
     setMessages([
       {
         role: 'system',
-        content: '🤖 AI Opponent Ready',
+        content: '🤖 ASI Alliance Negotiator Ready',
         timestamp: new Date()
       },
       {
         role: 'ai',
-        content: "Welcome to QuadraX! I'm your AI opponent. Before we begin our strategic battle on the 4x4 grid, we need to agree on the stakes. What amount of PYUSD would you like to wager on this match?",
+        content: "Welcome to QuadraX! I'm your AI negotiator, powered by ASI Alliance. Before we begin our strategic battle on the 4x4 grid, we need to agree on the stakes. What amount of PYUSD would you like to wager on this match?",
         timestamp: new Date()
       }
     ])
@@ -45,7 +54,7 @@ export default function NegotiatePage() {
   }, [messages])
 
   const handleSendMessage = async () => {
-    if (!input.trim()) return
+    if (!input.trim() || !negotiator) return
 
     const userMessage: Message = {
       role: 'user',
@@ -54,14 +63,15 @@ export default function NegotiatePage() {
     }
 
     setMessages(prev => [...prev, userMessage])
+    const currentInput = input
     setInput('')
     setIsTyping(true)
 
-    // Simulate AI response delay
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Simulate AI thinking delay
+    await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 600))
 
     // Check if user is accepting the AI's current proposal
-    const isAccepting = /\b(accept|agreed?|yes|ok|deal|sure|fine|i accept)\b/i.test(input)
+    const isAccepting = /\b(accept|agreed?|yes|ok|deal|sure|fine|i accept)\b/i.test(currentInput)
     
     if (isAccepting && proposedStake) {
       // User accepted the AI's proposal
@@ -77,63 +87,87 @@ export default function NegotiatePage() {
     }
 
     // Parse stake amount from user input
-    const stakeMatch = input.match(/(\d+\.?\d*)/)
+    const stakeMatch = currentInput.match(/(\d+\.?\d*)/)
     const userStake = stakeMatch ? parseFloat(stakeMatch[0]) : null
 
-    let aiResponse = ''
-    let newProposedStake = proposedStake
-
-    if (userStake !== null) {
-      if (userStake < 1) {
-        aiResponse = "I appreciate your enthusiasm, but let's keep it interesting. The minimum stake is 1 PYUSD. How about we start at 5 PYUSD?"
-        newProposedStake = 5
-      } else if (userStake > 100) {
-        aiResponse = `${userStake} PYUSD? That's quite bold! I respect your confidence. However, let's keep it reasonable. I counter with ${Math.min(userStake / 2, 50)} PYUSD. Deal?`
-        newProposedStake = Math.min(userStake / 2, 50)
-      } else if (userStake >= 1 && userStake <= 100) {
-        const randomFactor = Math.random()
-        if (randomFactor > 0.7) {
-          // AI accepts
-          aiResponse = `${userStake} PYUSD it is! I accept your terms. This will be an interesting match. Ready to proceed to staking?`
-          setAgreedStake(userStake)
-        } else if (randomFactor > 0.4) {
-          // AI counters slightly higher
-          const counter = Math.min(userStake * 1.2, 100)
-          aiResponse = `Hmm, ${userStake} PYUSD is reasonable, but I sense you have more confidence than that. How about ${counter.toFixed(2)} PYUSD to make it more thrilling?`
-          newProposedStake = parseFloat(counter.toFixed(2))
-        } else {
-          // AI counters slightly lower
-          const counter = Math.max(userStake * 0.8, 1)
-          aiResponse = `I like your style! But let's start a bit lower at ${counter.toFixed(2)} PYUSD. We can always increase the stakes for the next match if you win.`
-          newProposedStake = parseFloat(counter.toFixed(2))
-        }
+    // Build negotiation context
+    const context: NegotiationContext = {
+      userAddress: address,
+      currentStake: agreedStake,
+      proposedStake: userStake,
+      conversationHistory: messages.map(m => ({ role: m.role, content: m.content })),
+      userBalance: balanceData ? parseFloat(balanceData.formatted) : undefined,
+      gameHistory: {
+        gamesPlayed: 0, // TODO: Fetch from contract or local storage
+        winRate: 0,
+        avgStake: 0
       }
-    } else {
-      // Generic responses
-      const responses = [
-        "Let's talk numbers. What stake amount feels right for you? I'm thinking somewhere between 5-20 PYUSD.",
-        "I'm ready for a challenge! Suggest a stake amount and we'll negotiate from there.",
-        "Every great game needs good stakes. What's your opening offer in PYUSD?",
-      ]
-      aiResponse = responses[Math.floor(Math.random() * responses.length)]
     }
 
-    setProposedStake(newProposedStake)
+    // Get AI negotiation response
+    const response = await negotiator.negotiate(context)
 
+    // Update proposed stake if AI countered
+    if (response.proposedAmount) {
+      setProposedStake(response.proposedAmount)
+    }
+
+    // If AI accepted, set agreed stake
+    if (response.action === 'accept' && response.proposedAmount) {
+      setAgreedStake(response.proposedAmount)
+    } else if (response.action === 'accept' && userStake) {
+      setAgreedStake(userStake)
+    }
+
+    // Add AI response to messages
     const aiMessage: Message = {
       role: 'ai',
-      content: aiResponse,
+      content: response.message,
       timestamp: new Date()
     }
 
     setMessages(prev => [...prev, aiMessage])
     setIsTyping(false)
+
+    // Log for debugging
+    console.log('🤖 ASI Negotiation:', {
+      action: response.action,
+      confidence: response.confidence,
+      reasoning: response.reasoning,
+      hederaReady: response.hederaReady
+    })
   }
 
-  const handleProceedToStaking = () => {
-    if (agreedStake) {
-      // Navigate to game page with agreed stake
-      router.push(`/game?stake=${agreedStake}`)
+  const handleProceedToStaking = async () => {
+    if (agreedStake && negotiator && address) {
+      console.log('🚀 Preparing contract deployment for agreed stake...')
+      
+      // Deploy game on both Sepolia and Hedera
+      const deployment = await negotiator.prepareContractDeployment(
+        agreedStake,
+        address,
+        '0x0000000000000000000000000000000000000001' // Placeholder AI wallet
+      )
+      
+      console.log('📋 Deployment details:', deployment)
+      
+      // Build URL params
+      const params = new URLSearchParams({
+        stake: agreedStake.toString()
+      })
+
+      // Add Hedera escrow info if available
+      if (deployment.escrow?.contractId) {
+        params.append('escrowId', deployment.escrow.contractId)
+      }
+
+      // Add Sepolia game ID if available
+      if (deployment.sepolia?.gameId) {
+        params.append('gameId', deployment.sepolia.gameId)
+      }
+
+      // Navigate to game page with all deployment info
+      router.push(`/game?${params.toString()}`)
     }
   }
 

@@ -1,10 +1,11 @@
 // ASI Alliance Agents - Unified Export
-// Provides easy access to all 4 specialized QuadraX agents
+// Provides easy access to all 4 specialized QuadraX agents + Negotiator
 
 export { AlphaStrategist } from './alphaStrategist'
 export { BetaDefender } from './betaDefender'  
 export { GammaAggressor } from './gammaAggressor'
 export { DeltaAdaptive } from './deltaAdaptive'
+export { NegotiatorAgent } from './negotiatorAgent'
 
 export type {
   GamePosition,
@@ -17,6 +18,11 @@ export type {
   MovementMove,
   QuadraXMove
 } from './types'
+
+export type {
+  NegotiationContext,
+  NegotiationResponse
+} from './negotiatorAgent'
 
 // Agent factory for creating agent instances
 export class ASIAllianceFactory {
