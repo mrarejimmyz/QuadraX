@@ -142,11 +142,14 @@ export default function NegotiatePage() {
     if (agreedStake && negotiator && address) {
       console.log('🚀 Preparing contract deployment for agreed stake...')
       
+      // Import platform treasury address
+      const { PLATFORM_TREASURY } = await import('@/contracts/addresses')
+      
       // Deploy game on both Sepolia and Hedera
       const deployment = await negotiator.prepareContractDeployment(
         agreedStake,
         address,
-        '0x0000000000000000000000000000000000000001' // Placeholder AI wallet
+        PLATFORM_TREASURY // AI opponent uses treasury wallet
       )
       
       console.log('📋 Deployment details:', deployment)
@@ -157,8 +160,8 @@ export default function NegotiatePage() {
       })
 
       // Add Hedera escrow info if available
-      if (deployment.escrow?.contractId) {
-        params.append('escrowId', deployment.escrow.contractId)
+      if (deployment.hedera?.contractId) {
+        params.append('escrowId', deployment.hedera.contractId)
       }
 
       // Add Sepolia game ID if available

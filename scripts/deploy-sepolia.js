@@ -56,7 +56,7 @@ async function main() {
   console.log("   PYUSD Token:", pyusdToken);
   console.log("   Platform Wallet:", platformAddr);
   console.log("   Min Stake:", ethers.formatUnits(minStake, 6), "PYUSD");
-  console.log("   Platform Fee:", platformFee, "basis points (", platformFee / 100, "%)");
+  console.log("   Platform Fee:", platformFee.toString(), "basis points (", Number(platformFee) / 100, "%)");
 
   // Save deployment information
   const deploymentInfo = {

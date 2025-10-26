@@ -6,8 +6,15 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
+    "test:complete": "node scripts/test-complete.js",
+    "test:deployment": "hardhat run scripts/test-deployment.js --network sepolia",
+    "test:staking": "hardhat run scripts/test-staking.js --network sepolia",
+    "test:hedera": "node scripts/test-hedera-simple.js",
+    "test:hedera:real": "node scripts/test-hedera-real.js",
     "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy-sepolia.js --network sepolia",
     "deploy:hedera": "hardhat run scripts/deploy.js --network hedera-testnet",
+    "verify:sepolia": "hardhat verify --network sepolia",
     "node": "hardhat node",
     "clean": "hardhat clean"
   },
@@ -39,6 +46,7 @@
     "typechain": "^8.3.0"
   },
   "dependencies": {
+    "@hashgraph/sdk": "^2.75.0",
     "@openzeppelin/contracts": "^5.4.0",
     "dotenv": "^16.6.1",
     "ethers": "^6.9.0",

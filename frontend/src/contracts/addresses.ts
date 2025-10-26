@@ -1,10 +1,13 @@
 // Contract addresses for QuadraX on different networks
 
+// Platform/AI Treasury Address (holds PYUSD for AI opponent stakes)
+export const PLATFORM_TREASURY = '0x224783d70d55f9ab790fe27fcfc4629241f45371' as const
+
 export const CONTRACTS = {
   sepolia: {
-    PYUSD: '0xCaC524BcA292aaade2DF8A05cC58F0a65B1B3bB9', // PYUSD on Sepolia
-    PYUSDStaking: '', // Deploy this contract
-    TicTacToe: '', // Game logic contract
+    PYUSD: '0xCaC524BcA292aaade2DF8A05cC58F0a65B1B3bB9', // PYUSD on Sepolia (Official)
+    PYUSDStaking: '0x1E7A9732C25DaD9880ac9437d00a071B937c1807', // Deployed Oct 26, 2025
+    TicTacToe: '0xFD7B057CcdD731a446eFfd29ae95D03b0a63a986', // Deployed Oct 26, 2025
   },
   mainnet: {
     PYUSD: '', // PYUSD on mainnet

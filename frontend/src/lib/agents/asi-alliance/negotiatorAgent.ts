@@ -208,52 +208,86 @@ export class NegotiatorAgent {
 
   /**
    * Prepare for contract deployment on Sepolia + Hedera escrow
-   * Creates game on Sepolia and deploys Hedera escrow for stake management
+   * Uses EscrowCoordinator for atomic dual-chain deployment
    */
   async prepareContractDeployment(stake: number, player1: string, player2: string) {
-    console.log('🚀 Preparing dual-chain deployment (Sepolia + Hedera)...')
+    console.log('🚀 Preparing dual-chain deployment with EscrowCoordinator...')
     console.log(`  Stake: ${stake} PYUSD`)
     console.log(`  Player 1: ${player1}`)
     console.log(`  Player 2: ${player2}`)
 
-    const results: any = {
-      sepolia: null,
-      hedera: null,
-      ready: false
-    }
-
     try {
-      // 1. Deploy Hedera Escrow (primary stake management)
-      console.log('\n📋 Step 1: Deploying Hedera escrow...')
-      const { getHederaAgent } = await import('@/lib/agents/hedera')
-      const hederaAgent = getHederaAgent()
-      
-      // Initialize Hedera agent
-      await hederaAgent.initialize()
+      // Use EscrowCoordinator for atomic deployment
+      const { getEscrowCoordinator } = await import('@/lib/escrow/EscrowCoordinator')
+      const coordinator = getEscrowCoordinator()
 
-      // Deploy escrow contract
-      const escrowDeployment = await hederaAgent.deployEscrow(
-        stake,
-        player1,
-        player2
+      const deployment = await coordinator.deployDualChainGame(
+        player1 as `0x${string}`,
+        player2 as `0x${string}`,
+        stake.toString()
       )
 
-      results.hedera = escrowDeployment
-
-      if (escrowDeployment.success) {
-        console.log('✅ Hedera escrow deployed!')
-        console.log(`  Contract ID: ${escrowDeployment.contractId}`)
-      } else {
-        console.warn('⚠️ Hedera escrow deployment failed, continuing without it')
+      const results = {
+        sepolia: {
+          success: true,
+          gameId: deployment.sepoliaGameId,
+          network: 'sepolia',
+          stakeAmount: deployment.stakeAmount
+        },
+        hedera: {
+          success: true,
+          contractId: deployment.hederaEscrowId,
+          network: 'hedera-testnet'
+        },
+        ready: true
       }
 
-      // 2. Create game on Sepolia (optional, for transparency)
-      console.log('\n📋 Step 2: Creating game on Sepolia...')
-      const { getContractManager } = await import('@/lib/contracts/sepoliaManager')
-      const contractManager = getContractManager()
+      console.log('✅ Dual-chain deployment complete!')
+      console.log(`  Sepolia Game ID: ${deployment.sepoliaGameId}`)
+      console.log(`  Hedera Escrow ID: ${deployment.hederaEscrowId}`)
 
-      if (contractManager.isContractDeployed()) {
-        try {
+      return results
+
+    } catch (error: any) {
+      console.error('❌ EscrowCoordinator deployment failed:', error)
+
+      // Fallback to individual deployments for development
+      console.log('⚠️ Falling back to separate deployments...')
+      
+      const results: any = {
+        sepolia: null,
+        hedera: null,
+        ready: false
+      }
+
+      try {
+        // Try Hedera first
+        const { getHederaAgent } = await import('@/lib/agents/hedera')
+        const hederaAgent = getHederaAgent()
+        await hederaAgent.initialize()
+
+        const escrowDeployment = await hederaAgent.deployEscrow(
+          stake,
+          player1,
+          player2
+        )
+
+        results.hedera = escrowDeployment
+
+        if (escrowDeployment.success) {
+          console.log('✅ Hedera escrow deployed!')
+          console.log(`  Contract ID: ${escrowDeployment.contractId}`)
+        }
+      } catch (hederaError) {
+        console.warn('⚠️ Hedera deployment failed:', hederaError)
+      }
+
+      try {
+        // Try Sepolia
+        const { getContractManager } = await import('@/lib/contracts/sepoliaManager')
+        const contractManager = getContractManager()
+
+        if (contractManager.isContractDeployed()) {
           const sepoliaDeployment = await contractManager.createGame(
             player1 as `0x${string}`,
             player2 as `0x${string}`
@@ -262,45 +296,32 @@ export class NegotiatorAgent {
           results.sepolia = sepoliaDeployment
           console.log('✅ Game created on Sepolia!')
           console.log(`  Game ID: ${sepoliaDeployment.gameId}`)
-        } catch (error: any) {
-          console.warn('⚠️ Sepolia game creation failed:', error.message)
-          results.sepolia = { error: error.message }
         }
-      } else {
-        console.log('ℹ️ Sepolia contract not deployed, skipping')
+      } catch (sepoliaError) {
+        console.warn('⚠️ Sepolia deployment failed:', sepoliaError)
       }
 
       // Determine overall success
-      results.ready = escrowDeployment.success || (results.sepolia && !results.sepolia.error)
+      results.ready = (results.hedera?.success) || (results.sepolia && !results.sepolia.error)
 
       return {
         ready: results.ready,
-        message: escrowDeployment.success 
-          ? `Hedera escrow deployed! Contract: ${escrowDeployment.contractId}. Ready to stake.`
-          : 'Playing without on-chain escrow.',
-        escrow: escrowDeployment.success ? {
-          contractId: escrowDeployment.contractId,
-          transactionId: escrowDeployment.transactionId,
-          escrowAddress: escrowDeployment.escrowAddress
+        message: results.hedera?.success 
+          ? `Hedera escrow deployed! Contract: ${results.hedera.contractId}. Ready to stake.`
+          : 'Deployment incomplete. Some features may be limited.',
+        escrow: results.hedera?.success ? {
+          contractId: results.hedera.contractId,
+          transactionId: results.hedera.transactionId,
+          escrowAddress: results.hedera.escrowAddress
         } : null,
         sepolia: results.sepolia ? {
           gameId: results.sepolia.gameId?.toString(),
           transactionHash: results.sepolia.transactionHash
         } : null,
         stakeAmount: stake,
-        requiresStaking: escrowDeployment.success
+        requiresStaking: results.hedera?.success || results.sepolia?.gameId
       }
 
-    } catch (error: any) {
-      console.error('❌ Contract deployment failed:', error)
-      return {
-        ready: false,
-        message: `Deployment failed: ${error.message}. Playing without on-chain stakes.`,
-        escrow: null,
-        sepolia: null,
-        requiresStaking: false,
-        error: error.message
-      }
     }
   }
 }

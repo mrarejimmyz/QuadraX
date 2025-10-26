@@ -58,7 +58,10 @@ export class HederaAgent {
       if (accountId && privateKey) {
         // Use provided credentials
         this.operatorAccountId = AccountId.fromString(accountId)
-        this.operatorKey = PrivateKey.fromString(privateKey)
+        // Handle both raw and DER-encoded private keys
+        this.operatorKey = privateKey.startsWith('30')
+          ? PrivateKey.fromStringDer(privateKey)
+          : PrivateKey.fromString(privateKey)
         this.client.setOperator(this.operatorAccountId, this.operatorKey)
         console.log('✅ Hedera client initialized with operator:', accountId)
       } else {
@@ -68,7 +71,10 @@ export class HederaAgent {
 
         if (envAccountId && envPrivateKey) {
           this.operatorAccountId = AccountId.fromString(envAccountId)
-          this.operatorKey = PrivateKey.fromString(envPrivateKey)
+          // Handle both raw and DER-encoded private keys
+          this.operatorKey = envPrivateKey.startsWith('30')
+            ? PrivateKey.fromStringDer(envPrivateKey)
+            : PrivateKey.fromString(envPrivateKey)
           this.client.setOperator(this.operatorAccountId, this.operatorKey)
           console.log('✅ Hedera client initialized from environment')
         } else {
@@ -98,20 +104,24 @@ export class HederaAgent {
     console.log(`  Player 1: ${player1Address}`)
     console.log(`  Player 2: ${player2Address}`)
 
-    // Check if client is initialized
+    // Ensure client is initialized
     if (!this.client || !this.operatorAccountId || !this.operatorKey) {
-      console.warn('⚠️ Hedera client not initialized')
-      
-      return {
-        success: false,
-        contractId: null,
-        transactionId: null,
-        escrowAddress: null,
-        stakeAmount,
-        player1: player1Address,
-        player2: player2Address,
-        message: 'Hedera agent not initialized. Playing without on-chain escrow.',
-        error: 'Client not initialized'
+      // Try to initialize if not already done
+      const initialized = await this.initialize()
+      if (!initialized) {
+        console.warn('⚠️ Hedera client not initialized')
+        
+        return {
+          success: false,
+          contractId: null,
+          transactionId: null,
+          escrowAddress: null,
+          stakeAmount,
+          player1: player1Address,
+          player2: player2Address,
+          message: 'Hedera agent not initialized. Playing without on-chain escrow.',
+          error: 'Client not initialized'
+        }
       }
     }
 
@@ -389,10 +399,13 @@ export class HederaAgent {
 
 // Singleton instance
 let hederaAgent: HederaAgent | null = null
+let initializationPromise: Promise<boolean> | null = null
 
 export function getHederaAgent(): HederaAgent {
   if (!hederaAgent) {
     hederaAgent = new HederaAgent()
+    // Auto-initialize with environment variables
+    initializationPromise = hederaAgent.initialize()
   }
   return hederaAgent
 }

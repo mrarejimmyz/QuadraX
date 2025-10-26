@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { useAccount } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Board, GameInfo, AIChat } from '@/features/game'
 import StakeNegotiationChat from '@/features/game/StakeNegotiationChat'
@@ -28,9 +30,20 @@ interface PYUSDStakeContext {
 }
 
 export default function GamePage() {
+  // Get wallet address
+  const { address } = useAccount()
+  
+  // Read URL parameters
+  const searchParams = useSearchParams()
+  const urlStake = searchParams?.get('stake')
+  const urlGameId = searchParams?.get('gameId')
+  const urlEscrowId = searchParams?.get('escrowId')
+  
   // === 3-PHASE FLOW STATE ===
   // Phase 1: negotiation → Phase 2: staking → Phase 3: gameplay
-  const [gamePhase, setGamePhase] = useState<'negotiation' | 'staking' | 'gameplay' | 'finished'>('negotiation')
+  // If we have URL params, skip negotiation and go straight to staking
+  const initialPhase = (urlStake && urlGameId) ? 'staking' : 'negotiation'
+  const [gamePhase, setGamePhase] = useState<'negotiation' | 'staking' | 'gameplay' | 'finished'>(initialPhase)
   const [isDemoMode, setIsDemoMode] = useState(false) // Free play without stakes
   
   // Strategic 4x4 QuadraX Game State
@@ -71,6 +84,21 @@ export default function GamePage() {
     standardStake: 6,
     gameId: gameId.toString()
   })
+  
+  // Auto-configure from URL parameters (from negotiate page)
+  useEffect(() => {
+    if (urlStake && urlGameId) {
+      const stakeAmount = parseFloat(urlStake)
+      console.log('🎯 Auto-configuring from URL params:')
+      console.log('   Stake:', stakeAmount, 'PYUSD')
+      console.log('   Game ID:', urlGameId)
+      console.log('   Escrow ID:', urlEscrowId)
+      console.log('   Phase:', gamePhase)
+      
+      setNegotiatedStake(stakeAmount)
+      setPot((stakeAmount * 2).toString()) // Both players stake same amount
+    }
+  }, [urlStake, urlGameId, urlEscrowId, gamePhase])
   
   // Update game position when board changes (for AI commentary)
   useEffect(() => {
@@ -821,8 +849,8 @@ export default function GamePage() {
             />
 
             {/* Phase-specific panels */}
-            {gamePhase === 'staking' && negotiatedStake && (
-              <div className="glass rounded-xl p-6">
+            {gamePhase === 'staking' && negotiatedStake && urlGameId && (
+              <div className="glass rounded-xl p-6 space-y-4">
                 <h3 className="text-lg font-bold mb-4">💰 Stake Confirmation</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
@@ -841,6 +869,64 @@ export default function GamePage() {
                     <span className="text-white/60">Winner Gets:</span>
                     <span className="font-bold text-blue-400">{(negotiatedStake * 2 * 0.9975).toFixed(4)} PYUSD</span>
                   </div>
+                </div>
+                
+                {/* Staking Action Panel */}
+                <div className="mt-6 pt-6 border-t border-white/10">
+                  {!isStaked ? (
+                    <button
+                      onClick={async () => {
+                        try {
+                          console.log('🎯 Starting staking process...')
+                          console.log('   Game ID:', urlGameId)
+                          console.log('   Stake Amount:', negotiatedStake)
+                          console.log('   Escrow ID:', urlEscrowId)
+                          
+                          if (!address) {
+                            alert('Please connect your wallet first')
+                            return
+                          }
+                          
+                          // Use EscrowCoordinator for dual-chain staking
+                          const { getEscrowCoordinator } = await import('@/lib/escrow/EscrowCoordinator')
+                          const coordinator = getEscrowCoordinator()
+                          
+                          await coordinator.depositStake(
+                            urlGameId,
+                            urlEscrowId || '',
+                            address,
+                            negotiatedStake.toString()
+                          )
+                          
+                          setIsStaked(true)
+                          setGamePhase('gameplay')
+                          console.log('✅ Staking complete!')
+                          alert('✅ Staking successful! Game starting...')
+                        } catch (error: any) {
+                          console.error('❌ Staking failed:', error)
+                          
+                          // Better error messages
+                          if (error.message?.includes('User rejected') || error.message?.includes('User denied')) {
+                            alert('❌ Transaction rejected in MetaMask. Please try again and click "Confirm".')
+                          } else if (error.message?.includes('insufficient')) {
+                            alert('❌ Insufficient PYUSD balance. You need ' + negotiatedStake + ' PYUSD.')
+                          } else if (error.message?.includes('allowance')) {
+                            alert('❌ Approval failed. Please approve PYUSD spending first.')
+                          } else {
+                            alert('❌ Staking failed: ' + error.message)
+                          }
+                        }
+                      }}
+                      className="w-full py-3 px-6 rounded-lg bg-gradient-to-r from-green-500 to-blue-600
+                               font-semibold btn-hover text-white"
+                    >
+                      💰 Approve & Stake {negotiatedStake} PYUSD
+                    </button>
+                  ) : (
+                    <div className="text-center py-3 text-green-400">
+                      ✅ Stake Confirmed! Starting game...
+                    </div>
+                  )}
                 </div>
               </div>
             )}
