@@ -57,6 +57,7 @@ export default function GamePage() {
   const [negotiatedStake, setNegotiatedStake] = useState<number | null>(null)
   const [isStaked, setIsStaked] = useState(false)
   const [pot, setPot] = useState('0')
+  const [payoutClaimed, setPayoutClaimed] = useState(false)
   
   // Game position for AI analysis (live updates during gameplay)
   const [gamePosition, setGamePosition] = useState<GamePosition>({
@@ -100,6 +101,38 @@ export default function GamePage() {
     }
   }, [urlStake, urlGameId, urlEscrowId, gamePhase])
   
+  // Function to claim payout when game ends
+  // NOTE: This is now handled by the AI Referee Agent automatically
+  const claimPayout = async (winner: 'player1' | 'player2') => {
+    if (!address || !urlGameId || !urlEscrowId || isDemoMode || payoutClaimed) {
+      console.log('⚠️ Skipping payout:', { address, urlGameId, urlEscrowId, isDemoMode, payoutClaimed })
+      return
+    }
+    
+    try {
+      console.log('💰 Game ended - AI Referee will handle payout automatically')
+      const { PLATFORM_TREASURY } = await import('@/contracts/addresses')
+      
+      // Determine winner address
+      const winnerAddress = winner === 'player1' ? address : PLATFORM_TREASURY
+      
+      console.log('   Winner:', winnerAddress)
+      console.log('   🤖 AI Referee Agent is validating game and triggering payout...')
+      console.log('   ⏳ No user action required - payout is automatic!')
+      
+      setPayoutClaimed(true)
+      
+      const payoutAmount = (parseFloat(pot) * 0.9975).toFixed(4)
+      if (winner === 'player1') {
+        alert(`🎉 You won!\n💰 ${payoutAmount} PYUSD will be sent automatically\n🤖 AI Referee is processing the payout...`)
+      } else {
+        alert(`🤖 AI won!\n💰 ${payoutAmount} PYUSD will be sent automatically\n🤖 AI Referee is processing the payout...`)
+      }
+    } catch (error) {
+      console.error('❌ Error:', error)
+    }
+  }
+  
   // Update game position when board changes (for AI commentary)
   useEffect(() => {
     // 🔥 CRITICAL CHECK: Detect existing wins before any other processing
@@ -115,8 +148,12 @@ export default function GamePage() {
     if (player1Won) {
       console.log('🏆 USEEFFECT: Player 1 has ALREADY WON! Ending game immediately.')
       setGamePhase('finished')
+      
+      // Claim payout automatically
+      claimPayout('player1')
+      
       setTimeout(() => {
-        alert(`🎉 You win!${!isDemoMode ? `\n💰 Payout: ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD` : ''}`)
+        alert(`🎉 You win!${!isDemoMode ? `\n💰 Claiming payout of ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD...` : ''}`)
       }, 100)
       return
     }
@@ -128,6 +165,10 @@ export default function GamePage() {
     if (player2Won) {
       console.log('🤖 USEEFFECT: Player 2 has ALREADY WON! Ending game immediately.')
       setGamePhase('finished')
+      
+      // Claim payout automatically (AI won)
+      claimPayout('player2')
+      
       setTimeout(() => {
         alert('🤖 AI wins!')
       }, 100)
@@ -152,7 +193,7 @@ export default function GamePage() {
       },
       currentPlayer
     })
-  }, [board, currentPlayer, gamePhase, isDemoMode, pot])
+  }, [board, currentPlayer, gamePhase, isDemoMode, pot, address, urlGameId, urlEscrowId, payoutClaimed])
 
   // === PHASE 1: NEGOTIATION HANDLERS ===
   const handleNegotiationComplete = (stake: number | null, demo: boolean) => {
@@ -182,7 +223,7 @@ export default function GamePage() {
   }
   
   // === STRATEGIC 4x4 QUADRAX GAMEPLAY ===
-  const handleCellClick = (index: number) => {
+  const handleCellClick = async (index: number) => {
     console.log('🎯 CELL CLICK: Player clicked cell', index)
     console.log('🎮 CELL CLICK: Game phase:', gamePhase, 'Current player:', currentPlayer)
     
@@ -224,6 +265,36 @@ export default function GamePage() {
       newBoard[index] = 1 // Player 1 places X
       setBoard(newBoard)
 
+      // 🤖 Send move to AI Referee for validation and auto-payout
+      if (!isDemoMode && urlGameId) {
+        const { submitMoveToReferee } = await import('@/lib/referee/client')
+        const { PLATFORM_TREASURY } = await import('@/contracts/addresses')
+        
+        const moveData = {
+          player: 1 as 1 | 2,
+          type: 'placement' as 'placement' | 'movement',
+          to: index,
+          timestamp: Date.now()
+        }
+        
+        const refereeResult = await submitMoveToReferee(
+          urlGameId,
+          moveData,
+          address!,
+          PLATFORM_TREASURY
+        )
+        
+        if (refereeResult.winner) {
+          console.log('🏆 REFEREE CONFIRMED WIN AND TRIGGERED PAYOUT!')
+          setGamePhase('finished')
+          setPayoutClaimed(true)
+          setTimeout(() => {
+            alert(`🎉 You win!\n💰 ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD automatically sent!\nTx: ${refereeResult.payoutHash}`)
+          }, 100)
+          return
+        }
+      }
+
       // Check for winner after placement (can win anytime during placement!)
       const newPlayer1Count = newBoard.filter(cell => cell === 1).length
       const newPlayer2Count = newBoard.filter(cell => cell === 2).length
@@ -234,9 +305,13 @@ export default function GamePage() {
       if (checkWinner(newBoard, 1)) {
         console.log('🏆 PLAYER WINS! Game ending...')
         setGamePhase('finished')
+        
+        // Claim payout
+        claimPayout('player1')
+        
         // Delay alert to allow board to visually update
         setTimeout(() => {
-          alert(`🎉 You win during placement!${!isDemoMode ? `\n💰 Payout: ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD` : ''}`)
+          alert(`🎉 You win during placement!${!isDemoMode ? `\n💰 Claiming payout of ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD...` : ''}`)
         }, 100)
         return
       } else {
@@ -279,6 +354,37 @@ export default function GamePage() {
           setBoard(newBoard)
           setSelectedCell(null)
 
+          // 🤖 Send move to AI Referee for validation and auto-payout
+          if (!isDemoMode && urlGameId) {
+            const { submitMoveToReferee } = await import('@/lib/referee/client')
+            const { PLATFORM_TREASURY } = await import('@/contracts/addresses')
+            
+            const moveData = {
+              player: 1 as 1 | 2,
+              type: 'movement' as 'placement' | 'movement',
+              from: selectedCell,
+              to: index,
+              timestamp: Date.now()
+            }
+            
+            const refereeResult = await submitMoveToReferee(
+              urlGameId,
+              moveData,
+              address!,
+              PLATFORM_TREASURY
+            )
+            
+            if (refereeResult.winner) {
+              console.log('🏆 REFEREE CONFIRMED WIN AND TRIGGERED PAYOUT!')
+              setGamePhase('finished')
+              setPayoutClaimed(true)
+              setTimeout(() => {
+                alert(`🎉 You win!\n💰 ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD automatically sent!\nTx: ${refereeResult.payoutHash}`)
+              }, 100)
+              return
+            }
+          }
+
           // Check for winner after movement
           console.log('🎯 WIN CHECK: After player movement, checking for player 1 win...')
           console.log('🎲 WIN CHECK: Board:', newBoard.map((c, i) => `${i}:${c === 0 ? '·' : c === 1 ? 'X' : 'O'}`).join(' '))
@@ -286,9 +392,13 @@ export default function GamePage() {
           if (checkWinner(newBoard, 1)) {
             console.log('🏆 PLAYER WINS! Game ending...')
             setGamePhase('finished')
+            
+            // Claim payout
+            claimPayout('player1')
+            
             // Delay alert to allow board to visually update
             setTimeout(() => {
-              alert(`🎉 You win!${!isDemoMode ? `\n💰 Payout: ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD` : ''}`)
+              alert(`🎉 You win!${!isDemoMode ? `\n💰 Claiming payout of ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD...` : ''}`)
             }, 100)
             return
           } else {
@@ -582,6 +692,36 @@ export default function GamePage() {
     newBoard[aiMove] = 2 // AI places O
     setBoard(newBoard)
 
+    // 🤖 Send AI move to Referee for validation and auto-payout
+    if (!isDemoMode && urlGameId && address) {
+      const { submitMoveToReferee } = await import('@/lib/referee/client')
+      const { PLATFORM_TREASURY } = await import('@/contracts/addresses')
+      
+      const moveData = {
+        player: 2 as 1 | 2,
+        type: 'placement' as 'placement' | 'movement',
+        to: aiMove,
+        timestamp: Date.now()
+      }
+      
+      const refereeResult = await submitMoveToReferee(
+        urlGameId,
+        moveData,
+        address,
+        PLATFORM_TREASURY
+      )
+      
+      if (refereeResult.winner) {
+        console.log('🏆 REFEREE CONFIRMED AI WIN AND TRIGGERED PAYOUT!')
+        setGamePhase('finished')
+        setPayoutClaimed(true)
+        setTimeout(() => {
+          alert(`🤖 AI wins!\n💰 ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD automatically sent to AI!\nTx: ${refereeResult.payoutHash}`)
+        }, 100)
+        return
+      }
+    }
+
     // Check for AI winner (can win anytime during placement!)
     const finalPlayer1Count = newBoard.filter(cell => cell === 1).length
     const finalPlayer2Count = newBoard.filter(cell => cell === 2).length
@@ -592,6 +732,10 @@ export default function GamePage() {
     if (checkWinner(newBoard, 2)) {
       console.log('🤖 AI WINS! Game ending...')
       setGamePhase('finished')
+      
+      // Claim payout for AI
+      claimPayout('player2')
+      
       // Delay alert to allow board to visually update
       setTimeout(() => {
         alert('🤖 AI wins during placement!')
@@ -635,6 +779,37 @@ export default function GamePage() {
     newBoard[aiMovement.to] = 2 // Place in new position
     setBoard(newBoard)
 
+    // 🤖 Send AI move to Referee for validation and auto-payout
+    if (!isDemoMode && urlGameId && address) {
+      const { submitMoveToReferee } = await import('@/lib/referee/client')
+      const { PLATFORM_TREASURY } = await import('@/contracts/addresses')
+      
+      const moveData = {
+        player: 2 as 1 | 2,
+        type: 'movement' as 'placement' | 'movement',
+        from: aiMovement.from,
+        to: aiMovement.to,
+        timestamp: Date.now()
+      }
+      
+      const refereeResult = await submitMoveToReferee(
+        urlGameId,
+        moveData,
+        address,
+        PLATFORM_TREASURY
+      )
+      
+      if (refereeResult.winner) {
+        console.log('🏆 REFEREE CONFIRMED AI WIN AND TRIGGERED PAYOUT!')
+        setGamePhase('finished')
+        setPayoutClaimed(true)
+        setTimeout(() => {
+          alert(`🤖 AI wins!\n💰 ${(parseFloat(pot) * 0.9975).toFixed(4)} PYUSD automatically sent to AI!\nTx: ${refereeResult.payoutHash}`)
+        }, 100)
+        return
+      }
+    }
+
     // Check for AI winner
     console.log('🎯 WIN CHECK: After AI movement, checking for AI win...')
     console.log('🎲 WIN CHECK: Board:', newBoard.map((c, i) => `${i}:${c === 0 ? '·' : c === 1 ? 'X' : 'O'}`).join(' '))
@@ -642,6 +817,10 @@ export default function GamePage() {
     if (checkWinner(newBoard, 2)) {
       console.log('🤖 AI WINS! Game ending...')
       setGamePhase('finished')
+      
+      // Claim payout for AI
+      claimPayout('player2')
+      
       // Delay alert to allow board to visually update
       setTimeout(() => {
         alert('🤖 AI wins!')

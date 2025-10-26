@@ -58,21 +58,26 @@ async function main() {
     console.log("\n📝 Using PYUSD token at:", pyusdAddress);
   }
 
-  // Set platform wallet
+  // Set platform wallet and referee
   const platformWallet = process.env.PLATFORM_WALLET || deployer.address;
+  const refereeWallet = process.env.REFEREE_WALLET || deployer.address;
+  
   console.log("\n📝 Platform Configuration:");
   console.log("   Platform Wallet:", platformWallet);
+  console.log("   AI Referee Wallet:", refereeWallet);
   console.log("   Platform Fee:", config.platform.feePercentage + "%");
   console.log("   Min Stake:", config.platform.minStakeAmount, "PYUSD");
 
   // Deploy PYUSDStaking contract
   console.log("\n📦 Deploying PYUSDStaking contract...");
+  console.log("   🤖 AI Referee will be the ONLY entity allowed to declare winners");
   const PYUSDStaking = await hre.ethers.getContractFactory("PYUSDStaking");
-  const staking = await PYUSDStaking.deploy(pyusdAddress, platformWallet);
+  const staking = await PYUSDStaking.deploy(pyusdAddress, platformWallet, refereeWallet);
   await staking.waitForDeployment();
   const stakingAddress = await staking.getAddress();
   deployedContracts.staking = stakingAddress;
   console.log("✅ PYUSDStaking deployed to:", stakingAddress);
+  console.log("   🔒 Only referee", refereeWallet, "can declare winners");
 
   // Save deployment information
   if (config.deployment.saveDeployments) {
@@ -82,6 +87,7 @@ async function main() {
       deployer: deployer.address,
       contracts: deployedContracts,
       platformWallet: platformWallet,
+      refereeWallet: refereeWallet,
       platformFee: config.platform.feeBasisPoints,
       minStake: config.platform.minStakeAmount,
       deployedAt: new Date().toISOString(),

@@ -327,18 +327,49 @@ export class EscrowCoordinator {
     console.log('Winner:', winner);
 
     try {
-      // Step 1: Claim winnings on Sepolia
-      console.log('📝 Claiming winnings on Sepolia...');
+      // Step 1: Declare winner and trigger automatic payout on Sepolia
+      // NOTE: The caller signs the transaction, but the contract sends PYUSD to the winner
+      console.log('📝 Declaring winner on Sepolia...');
+      console.log('   Winner will receive:', winner);
+      console.log('   Transaction signed by:', this.walletClient.account?.address);
+      
+      // Convert gameId to BigInt
+      const gameIdBigInt = BigInt(gameId);
+      
       const claimHash = await this.walletClient.writeContract({
         address: STAKING_CONTRACT_ADDRESS,
         abi: PYUSDStakingABI.abi || PYUSDStakingABI,
-        functionName: 'claimWinnings',
-        args: [gameId],
-        account: winner,
+        functionName: 'declareWinner',
+        args: [gameIdBigInt, winner],
+        // The signer can be anyone - the contract sends funds to 'winner' parameter
       });
 
-      console.log('⏳ Waiting for claim confirmation...');
-      const receipt = await this.publicClient.waitForTransactionReceipt({ hash: claimHash });
+      console.log('✅ DeclareWinner transaction submitted:', claimHash);
+      console.log('   View on Etherscan: https://sepolia.etherscan.io/tx/' + claimHash);
+      console.log('⏳ Waiting for payout confirmation...');
+      
+      // Manual polling for receipt
+      let receipt = null;
+      let attempts = 0;
+      const maxAttempts = 60; // 3 minutes max
+      
+      while (!receipt && attempts < maxAttempts) {
+        try {
+          receipt = await this.publicClient.getTransactionReceipt({ hash: claimHash });
+        } catch (e) {
+          // Receipt not ready yet
+        }
+        if (receipt) break;
+        attempts++;
+        if (attempts % 10 === 0) {
+          console.log(`   Still waiting for confirmation... (${attempts * 3}s elapsed)`);
+        }
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+      
+      if (!receipt) {
+        throw new Error('Payout transaction not confirmed after 3 minutes');
+      }
 
       if (receipt.status !== 'success') {
         throw new Error('Sepolia claim transaction reverted');

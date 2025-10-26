@@ -8,9 +8,11 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * @title PYUSDStaking
  * @dev Staking and payout contract for QuadraX games
  * @notice Manages PYUSD bets and automatic winner payouts
+ * @notice Only the AI Referee Agent can declare winners (prevents cheating)
  */
 contract PYUSDStaking is ReentrancyGuard {
     IERC20 public pyusdToken;
+    address public gameReferee; // AI Referee Agent - only entity that can declare winners
 
     struct Game {
         address player1;
@@ -41,6 +43,7 @@ contract PYUSDStaking is ReentrancyGuard {
     event TieRefunded(uint256 indexed gameId, uint256 player1Refund, uint256 player2Refund);
     event FeeUpdated(uint256 newFee);
     event FeesWithdrawn(address indexed to, uint256 amount);
+    event RefereeUpdated(address indexed oldReferee, address indexed newReferee);
 
     modifier onlyPlayers(uint256 gameId) {
         require(
@@ -50,11 +53,18 @@ contract PYUSDStaking is ReentrancyGuard {
         _;
     }
 
-    constructor(address _pyusdToken, address _platformWallet) {
+    modifier onlyReferee() {
+        require(msg.sender == gameReferee, "Only AI Referee can call this");
+        _;
+    }
+
+    constructor(address _pyusdToken, address _platformWallet, address _gameReferee) {
         require(_pyusdToken != address(0), "Invalid PYUSD address");
         require(_platformWallet != address(0), "Invalid platform wallet");
+        require(_gameReferee != address(0), "Invalid referee address");
         pyusdToken = IERC20(_pyusdToken);
         platformWallet = _platformWallet;
+        gameReferee = _gameReferee;
     }
 
     /**
@@ -128,11 +138,13 @@ contract PYUSDStaking is ReentrancyGuard {
     }
 
     /**
-     * @dev Declare winner and pay out (called by game contract or oracle)
+     * @dev Declare winner and pay out (ONLY callable by AI Referee Agent)
      * @param gameId ID of the game
      * @param winnerAddress Address of the winner
+     * @notice This function can ONLY be called by the trusted AI Referee
+     * @notice The referee validates all moves and ensures no cheating occurred
      */
-    function declareWinner(uint256 gameId, address winnerAddress) external nonReentrant {
+    function declareWinner(uint256 gameId, address winnerAddress) external nonReentrant onlyReferee {
         Game storage game = games[gameId];
 
         require(game.gameStarted, "Game not started");
@@ -159,10 +171,10 @@ contract PYUSDStaking is ReentrancyGuard {
     }
 
     /**
-     * @dev Handle tie game - refund both players
+     * @dev Handle tie game - refund both players (ONLY callable by AI Referee)
      * @param gameId ID of the game
      */
-    function declareTie(uint256 gameId) external nonReentrant {
+    function declareTie(uint256 gameId) external nonReentrant onlyReferee {
         Game storage game = games[gameId];
 
         require(game.gameStarted, "Game not started");
@@ -179,7 +191,7 @@ contract PYUSDStaking is ReentrancyGuard {
     }
 
     /**
-     * @dev Update platform fee (only owner can call - add Ownable if needed)
+     * @dev Update platform fee (only platform wallet can call)
      * @param newFee New fee in basis points (e.g., 25 = 0.25%)
      */
     function updateFee(uint256 newFee) external {
@@ -187,6 +199,19 @@ contract PYUSDStaking is ReentrancyGuard {
         require(newFee <= 500, "Fee too high (max 5%)");
         platformFee = newFee;
         emit FeeUpdated(newFee);
+    }
+
+    /**
+     * @dev Update the AI Referee address (only platform wallet can call)
+     * @param newReferee Address of the new referee
+     * @notice Use this to upgrade the referee agent or rotate keys
+     */
+    function updateReferee(address newReferee) external {
+        require(msg.sender == platformWallet, "Only platform can update referee");
+        require(newReferee != address(0), "Invalid referee address");
+        address oldReferee = gameReferee;
+        gameReferee = newReferee;
+        emit RefereeUpdated(oldReferee, newReferee);
     }
 
     /**
