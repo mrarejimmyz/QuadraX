@@ -1,11 +1,12 @@
 'use client'
 
+import '@/lib/utils/consoleFilter' // Suppress noisy extension messages
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider } from 'wagmi'
 import { RainbowKitProvider, getDefaultConfig } from '@rainbow-me/rainbowkit'
 import { mainnet, polygon, optimism, arbitrum, base, zora, sepolia } from 'wagmi/chains'
 import { defineChain } from 'viem'
-import React, { ReactNode } from 'react'
+import React, { ReactNode, useState, useEffect } from 'react'
 import '@rainbow-me/rainbowkit/styles.css'
 
 // Define Hedera Testnet
@@ -87,35 +88,76 @@ const chains = [
   base,
 ] as const
 
-const config = getDefaultConfig({
-  appName: 'QuadraX - Agentic 4x4 Tic-Tac-Toe',
-  projectId: projectId || 'da5fd500fc534848c0c6112afa93e5d1',
-  chains,
-  ssr: false, // Disable SSR to ensure proper browser wallet detection
-})
+// Create wagmi config singleton to prevent re-initialization
+let wagmiConfig: ReturnType<typeof getDefaultConfig> | undefined = undefined
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 10, // 10 minutes
-      retry: false,
-      refetchOnWindowFocus: false,
+function getWagmiConfig() {
+  if (!wagmiConfig) {
+    wagmiConfig = getDefaultConfig({
+      appName: 'QuadraX - Agentic 4x4 Tic-Tac-Toe',
+      projectId: projectId || 'da5fd500fc534848c0c6112afa93e5d1',
+      chains,
+      ssr: false, // Disable SSR to ensure proper browser wallet detection
+    })
+  }
+  return wagmiConfig
+}
+
+const config = getWagmiConfig()
+
+// Create QueryClient factory to ensure singleton in client components
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        gcTime: 1000 * 60 * 10, // 10 minutes
+        retry: false,
+        refetchOnWindowFocus: false,
+        refetchOnMount: false, // Prevent refetching on mount
+        refetchOnReconnect: false, // Prevent refetching on reconnect
+      },
     },
-  },
-})
+  })
+}
+
+let browserQueryClient: QueryClient | undefined = undefined
+
+function getQueryClient() {
+  if (typeof window === 'undefined') {
+    // Server: always make a new query client
+    return makeQueryClient()
+  } else {
+    // Browser: make a new query client if we don't already have one
+    if (!browserQueryClient) browserQueryClient = makeQueryClient()
+    return browserQueryClient
+  }
+}
 
 export function Providers({ children }: { children: ReactNode }) {
+  const queryClient = getQueryClient()
+  const [mounted, setMounted] = useState(false)
+
+  // Prevent hydration issues by only rendering RainbowKit on client
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider 
-          initialChain={sepolia}
-          showRecentTransactions={true}
-          modalSize="compact"
-        >
-          {children}
-        </RainbowKitProvider>
+        {mounted ? (
+          <RainbowKitProvider 
+            initialChain={sepolia}
+            showRecentTransactions={true}
+            modalSize="compact"
+            avatar={() => null}
+          >
+            {children}
+          </RainbowKitProvider>
+        ) : (
+          children
+        )}
       </QueryClientProvider>
     </WagmiProvider>
   )

@@ -52,7 +52,7 @@ export default function OllamaDemoPage() {
               <span className="text-2xl font-bold">QuadraX</span>
               <span className="text-sm text-white/60">Ollama + Llama 3.2 8B Demo</span>
             </Link>
-            <ConnectButton />
+            <ConnectButton showBalance={false} />
           </div>
         </div>
       </header>

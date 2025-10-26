@@ -691,7 +691,7 @@ export default function GamePage() {
               <span className="text-2xl font-bold">QuadraX</span>
               <span className="text-sm text-white/60">Game Room</span>
             </Link>
-            <ConnectButton />
+            <ConnectButton showBalance={false} />
           </div>
         </div>
       </header>

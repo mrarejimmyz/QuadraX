@@ -1,608 +1,352 @@
-/**
- * Streamlined Demo Page - Optimized for Live Demo Recording
- * Fast loading, clear flow, minimal complexity
- */
+﻿'use client'
 
-'use client'
-
-import { useState } from 'react'
-import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { useAccount } from 'wagmi'
+import { ASIAllianceFactory } from '@/lib/agents/asi-alliance'
+import { HybridBulletproofValidator } from '@/lib/agents/asi-alliance/hybridValidator'
+import type { GamePosition } from '@/lib/agents/asi-alliance/types'
 
-export default function StreamlinedDemo() {
-  const [currentStep, setCurrentStep] = useState(1)
-  const [demoStarted, setDemoStarted] = useState(false)
+type Cell = number // 0 = empty, 1 = Player (X), 2 = AI (O)
+type Board = Cell[]
 
-  const startDemo = () => {
-    setDemoStarted(true)
-    setCurrentStep(1)
+export default function DemoPage() {
+  const { address, isConnected } = useAccount()
+  const [board, setBoard] = useState<Board>(Array(16).fill(0))
+  const [isPlayerTurn, setIsPlayerTurn] = useState(true)
+  const [winner, setWinner] = useState<string | null>(null)
+  const [placementPhase, setPlacementPhase] = useState(true)
+  const [playerPieces, setPlayerPieces] = useState(0)
+  const [aiPieces, setAIPieces] = useState(0)
+  const [isAIThinking, setIsAIThinking] = useState(false)
+  const [aiMessage, setAIMessage] = useState<string>('')
+  const [agents, setAgents] = useState<any>(null)
+
+  // Log connection status for debugging
+  useEffect(() => {
+    console.log('🔗 Wallet connection status:', { isConnected, address })
+  }, [isConnected, address])
+
+  // Initialize AI agents
+  useEffect(() => {
+    const initAgents = async () => {
+      const allAgents = await ASIAllianceFactory.createAllAgents()
+      setAgents(allAgents)
+      setAIMessage('🤖 AI agents initialized and ready!')
+    }
+    initAgents()
+  }, [])
+
+  const checkWinner = (currentBoard: Board): number | null => {
+    // Check 4-in-a-row (horizontal, vertical, diagonal)
+    const lines = [
+      // Horizontal
+      [0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15],
+      // Vertical
+      [0, 4, 8, 12], [1, 5, 9, 13], [2, 6, 10, 14], [3, 7, 11, 15],
+      // Diagonal
+      [0, 5, 10, 15], [3, 6, 9, 12]
+    ]
+
+    for (const line of lines) {
+      const [a, b, c, d] = line
+      if (currentBoard[a] !== 0 && currentBoard[a] === currentBoard[b] && 
+          currentBoard[a] === currentBoard[c] && currentBoard[a] === currentBoard[d]) {
+        return currentBoard[a]
+      }
+    }
+
+    // Check 2x2 squares
+    const squares = [
+      [0, 1, 4, 5], [1, 2, 5, 6], [2, 3, 6, 7],
+      [4, 5, 8, 9], [5, 6, 9, 10], [6, 7, 10, 11],
+      [8, 9, 12, 13], [9, 10, 13, 14], [10, 11, 14, 15]
+    ]
+
+    for (const square of squares) {
+      const [a, b, c, d] = square
+      if (currentBoard[a] !== 0 && currentBoard[a] === currentBoard[b] && 
+          currentBoard[a] === currentBoard[c] && currentBoard[a] === currentBoard[d]) {
+        return currentBoard[a]
+      }
+    }
+
+    return null
   }
 
-  const nextStep = () => {
-    if (currentStep < 4) {
-      setCurrentStep(currentStep + 1)
+  // AI makes a move using the hybrid system
+  const makeAIMove = useCallback(async () => {
+    if (!agents || winner || isPlayerTurn || isAIThinking) return
+
+    setIsAIThinking(true)
+    setAIMessage('🧠 AI analyzing board position...')
+
+    // Simulate thinking time
+    await new Promise(resolve => setTimeout(resolve, 800))
+
+    // Generate possible moves
+    const emptySpots = board.map((cell, idx) => cell === 0 ? idx : -1).filter(idx => idx !== -1)
+    
+    // Check if placement phase is complete for AI
+    if (placementPhase && aiPieces >= 4) {
+      setIsPlayerTurn(true)
+      setIsAIThinking(false)
+      setAIMessage('⏸️ AI placement complete, waiting for player...')
+      return
+    }
+
+    // No valid moves available
+    if (emptySpots.length === 0) {
+      setIsPlayerTurn(true)
+      setIsAIThinking(false)
+      setAIMessage('⚠️ No valid moves available')
+      return
+    }
+    
+    const gamePosition: GamePosition = {
+      board,
+      phase: placementPhase ? 'placement' : 'movement',
+      currentPlayer: 2,
+      moveHistory: [],
+      possibleMoves: emptySpots
+    }
+
+    try {
+      // Get move from Alpha Strategist (primary decision maker)
+      const opponentProfile = {
+        movesCount: playerPieces,
+        averageResponseTime: 3000,
+        aggressionLevel: 0.5,
+        errorRate: 0.1,
+        preferredPositions: [] as number[]
+      }
+      
+      const decision = await agents.alphaStrategist.selectQuadraXMove(gamePosition, opponentProfile, 30000)
+      
+      let moveIndex: number
+      if (decision.move.type === 'placement' && decision.move.position !== undefined) {
+        moveIndex = decision.move.position
+        setAIMessage(`🎯 ${decision.reasoning.slice(0, 80)}...`)
+      } else {
+        // Fallback to random valid move
+        moveIndex = emptySpots[Math.floor(Math.random() * emptySpots.length)]
+        setAIMessage('🤖 AI making strategic placement...')
+      }
+
+      // Validate with hybrid validator
+      const validator = new HybridBulletproofValidator()
+      const validation = await validator.validateMove(gamePosition, moveIndex, 2)
+      
+      if (validation.isValid) {
+        const newBoard = [...board]
+        newBoard[moveIndex] = 2
+        setBoard(newBoard)
+        setAIPieces(aiPieces + 1)
+
+        const gameWinner = checkWinner(newBoard)
+        if (gameWinner) {
+          setWinner(gameWinner === 1 ? 'Player' : 'AI')
+          setAIMessage(gameWinner === 2 ? '🏆 AI wins!' : '😔 You won!')
+          setIsAIThinking(false)
+          return
+        }
+
+        if (playerPieces === 4 && aiPieces + 1 === 4) {
+          setPlacementPhase(false)
+          setAIMessage('✅ Placement complete! Movement phase begins.')
+        }
+
+        setIsPlayerTurn(true)
+        setIsAIThinking(false)
+      } else {
+        // Validation failed - fallback to random valid move
+        console.warn('AI move validation failed, using fallback')
+        const fallbackIndex = emptySpots[Math.floor(Math.random() * emptySpots.length)]
+        const newBoard = [...board]
+        newBoard[fallbackIndex] = 2
+        setBoard(newBoard)
+        setAIPieces(aiPieces + 1)
+        setIsPlayerTurn(true)
+        setIsAIThinking(false)
+        setAIMessage('🤖 AI made a move')
+      }
+    } catch (error) {
+      console.error('AI move error:', error)
+      // Fallback to random move on error
+      const fallbackIndex = emptySpots[Math.floor(Math.random() * emptySpots.length)]
+      const newBoard = [...board]
+      newBoard[fallbackIndex] = 2
+      setBoard(newBoard)
+      setAIPieces(aiPieces + 1)
+      setIsPlayerTurn(true)
+      setIsAIThinking(false)
+      setAIMessage('⚠️ AI used fallback move')
+    }
+  }, [agents, winner, isPlayerTurn, isAIThinking, board, placementPhase, aiPieces, playerPieces])
+
+  // Trigger AI move when it's AI's turn
+  useEffect(() => {
+    if (!isPlayerTurn && !winner && agents && !isAIThinking) {
+      console.log('🤖 Triggering AI move - Turn:', !isPlayerTurn, 'Winner:', winner, 'Agents:', !!agents, 'Thinking:', isAIThinking)
+      makeAIMove()
+    }
+  }, [isPlayerTurn, winner, agents, isAIThinking, makeAIMove])
+
+  const handleCellClick = (index: number) => {
+    if (winner || board[index] !== 0 || !isPlayerTurn || isAIThinking) return
+
+    if (placementPhase) {
+      // Placement phase - max 4 pieces per player
+      if (playerPieces >= 4) return
+
+      const newBoard = [...board]
+      newBoard[index] = 1 // Player is 1
+      setBoard(newBoard)
+      setPlayerPieces(playerPieces + 1)
+
+      const gameWinner = checkWinner(newBoard)
+      if (gameWinner) {
+        setWinner(gameWinner === 1 ? 'Player' : 'AI')
+        return
+      }
+
+      if (playerPieces + 1 === 4 && aiPieces === 4) {
+        setPlacementPhase(false)
+        setAIMessage('🎮 Movement phase unlocked!')
+      }
+
+      setIsPlayerTurn(false) // AI's turn
     }
   }
 
-  const resetDemo = () => {
-    setDemoStarted(false)
-    setCurrentStep(1)
+  const resetGame = () => {
+    setBoard(Array(16).fill(0))
+    setIsPlayerTurn(true)
+    setWinner(null)
+    setPlacementPhase(true)
+    setPlayerPieces(0)
+    setAIPieces(0)
+    setIsAIThinking(false)
+    setAIMessage('🤖 AI ready for a new game!')
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-      {/* Header */}
-      <header className="container mx-auto px-4 py-6">
-        <div className="flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-3 text-white hover:text-purple-200 transition-colors">
-            <span className="text-4xl">🎮</span>
-            <h1 className="text-3xl font-bold">QuadraX Demo</h1>
+    <div className="min-h-screen bg-black">
+      {/* Simple Header */}
+      <header className="border-b border-white/10 py-4">
+        <div className="container mx-auto px-4 flex justify-between items-center">
+          <Link href="/" className="text-2xl font-bold text-white hover:text-gray-300">
+            ← Back to Home
           </Link>
-          <ConnectButton />
+          <ConnectButton showBalance={false} />
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        {!demoStarted ? (
-          /* Demo Introduction */
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-5xl font-bold text-white mb-6">
-              🚀 Live Demo Experience
-            </h2>
-            
-            <p className="text-xl text-gray-200 mb-12 max-w-2xl mx-auto">
-              See how QuadraX combines AI negotiation, PYUSD staking, 
-              and strategic gameplay in one seamless experience.
-            </p>
+      {/* Main Game */}
+      <main className="container mx-auto px-4 py-12">
+        <div className="max-w-2xl mx-auto">
+          <h1 className="text-4xl font-bold text-white text-center mb-8">
+            Demo Game - No Stakes
+          </h1>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6">
-                <div className="text-4xl mb-4">🤖</div>
-                <h3 className="font-semibold text-white mb-2">AI Chat</h3>
-                <p className="text-gray-300 text-sm">Negotiate stakes with intelligent agents</p>
-              </div>
-              
-              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6">
-                <div className="text-4xl mb-4">💰</div>
-                <h3 className="font-semibold text-white mb-2">PYUSD Staking</h3>
-                <p className="text-gray-300 text-sm">Lock real stakes in smart contracts</p>
-              </div>
-              
-              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6">
-                <div className="text-4xl mb-4">🎮</div>
-                <h3 className="font-semibold text-white mb-2">Strategic Game</h3>
-                <p className="text-gray-300 text-sm">4x4 enhanced tic-tac-toe gameplay</p>
-              </div>
-              
-              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6">
-                <div className="text-4xl mb-4">🏆</div>
-                <h3 className="font-semibold text-white mb-2">Auto Payout</h3>
-                <p className="text-gray-300 text-sm">Winner gets pot automatically</p>
+          {/* Wallet Status (optional - for demo, wallet not required) */}
+          {isConnected && (
+            <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 mb-6 text-center">
+              <p className="text-green-400 text-sm">
+                ✅ Wallet Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
+              </p>
+            </div>
+          )}
+
+          {/* AI Status Message */}
+          {aiMessage && (
+            <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl p-4 mb-6">
+              <div className="flex items-center gap-3">
+                {isAIThinking && (
+                  <div className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></div>
+                )}
+                <p className="text-white font-medium">{aiMessage}</p>
               </div>
             </div>
+          )}
 
-            <button
-              onClick={startDemo}
-              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-12 py-4 rounded-lg font-bold text-xl transition-all duration-200 transform hover:scale-105"
-            >
-              🚀 Start Live Demo
-            </button>
-          </div>
-        ) : (
-          /* Demo Steps */
-          <div className="max-w-6xl mx-auto">
-            {/* Progress Bar */}
-            <div className="bg-white/10 rounded-full p-1 mb-8">
-              <div 
-                className="bg-gradient-to-r from-green-500 to-emerald-600 h-3 rounded-full transition-all duration-500"
-                style={{ width: `${(currentStep / 4) * 100}%` }}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Left Panel - Current Step */}
-              <div className="lg:col-span-2">
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-8">
-                  {currentStep === 1 && (
-                    <div>
-                      <h3 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-                        <span>🤖</span> Step 1: AI Negotiation
-                      </h3>
-                      
-                      <div className="bg-black/30 rounded-lg p-6 mb-6">
-                        <div className="space-y-4">
-                          <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">AI</div>
-                            <div className="bg-blue-500/20 rounded-lg p-3 flex-1">
-                              <p className="text-white">Hello! I'm ready for a QuadraX match. What stake would you like to play for?</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-sm font-bold">YOU</div>
-                            <div className="bg-green-500/20 rounded-lg p-3 flex-1">
-                              <p className="text-white">Let's play for 5 PYUSD</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">AI</div>
-                            <div className="bg-blue-500/20 rounded-lg p-3 flex-1">
-                              <p className="text-white">Perfect! 5 PYUSD is a great stake. I agree to these terms. Ready to lock in the stakes?</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-green-500/20 rounded-lg p-4 border border-green-500/30 mb-6">
-                        <h4 className="font-semibold text-green-300 mb-2">✅ Negotiation Complete</h4>
-                        <p className="text-green-200">Stakes agreed: 5 PYUSD each player</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {currentStep === 2 && (
-                    <div>
-                      <h3 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-                        <span>�</span> Step 2: PYUSD Staking
-                      </h3>
-                      
-                      <div className="space-y-6">
-                        <div className="bg-black/30 rounded-lg p-6">
-                          <h4 className="text-xl font-semibold text-white mb-4">Smart Contract Details</h4>
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <span className="text-gray-400">Your Stake:</span>
-                              <div className="text-2xl font-bold text-green-400">5.00 PYUSD</div>
-                            </div>
-                            <div>
-                              <span className="text-gray-400">AI Stake:</span>
-                              <div className="text-2xl font-bold text-blue-400">5.00 PYUSD</div>
-                            </div>
-                            <div>
-                              <span className="text-gray-400">Total Pot:</span>
-                              <div className="text-2xl font-bold text-yellow-400">10.00 PYUSD</div>
-                            </div>
-                            <div>
-                              <span className="text-gray-400">Platform Fee:</span>
-                              <div className="text-2xl font-bold text-purple-400">0.025 PYUSD</div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="bg-green-500/20 rounded-lg p-4 border border-green-500/30">
-                          <h4 className="font-semibold text-green-300 mb-2">✅ Stakes Locked</h4>
-                          <p className="text-green-200">Smart contract deployed, funds secured</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {currentStep === 3 && (
-                    <div>
-                      <h3 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-                        <span>🎮</span> Step 3: Strategic Gameplay
-                      </h3>
-                      
-                      <div className="bg-black/30 rounded-lg p-6 mb-6">
-                        <h4 className="text-xl font-semibold text-white mb-4">QuadraX Board (4x4)</h4>
-                        
-                        {/* Simple demo board */}
-                        <div className="grid grid-cols-4 gap-2 max-w-sm mx-auto mb-4">
-                          {[
-                            'X', 'O', '', '',
-                            'O', 'X', 'X', '',
-                            '', 'X', 'O', '',
-                            '', '', 'O', 'X'
-                          ].map((cell, i) => (
-                            <div 
-                              key={i}
-                              className="aspect-square bg-white/10 border border-white/20 rounded-lg flex items-center justify-center text-2xl font-bold"
-                            >
-                              <span className={cell === 'X' ? 'text-green-400' : 'text-blue-400'}>
-                                {cell}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                        
-                        <div className="text-center space-y-2">
-                          <p className="text-green-400 font-semibold">🎯 Goal: Get 4 in a row or 2x2 square</p>
-                          <p className="text-gray-300">Turn: Player (X)</p>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-yellow-500/20 rounded-lg p-4 border border-yellow-500/30">
-                        <h4 className="font-semibold text-yellow-300 mb-2">⚡ Game in Progress</h4>
-                        <p className="text-yellow-200">Strategic moves being made...</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {currentStep === 4 && (
-                    <div>
-                      <h3 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-                        <span>🏆</span> Step 4: Winner & Payout
-                      </h3>
-                      
-                      <div className="space-y-6">
-                        <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-lg p-8 text-center border border-green-500/30">
-                          <div className="text-6xl mb-4">🏆</div>
-                          <h4 className="text-3xl font-bold text-green-300 mb-2">You Win!</h4>
-                          <p className="text-green-200 mb-4">Completed winning pattern: 2x2 square</p>
-                          
-                          <div className="bg-black/30 rounded-lg p-4">
-                            <div className="text-2xl font-bold text-yellow-400 mb-2">Payout: 9.975 PYUSD</div>
-                            <p className="text-gray-300 text-sm">Total pot (10.00) - Platform fee (0.025)</p>
-                          </div>
-                        </div>
-                        
-                        <div className="bg-green-500/20 rounded-lg p-4 border border-green-500/30">
-                          <h4 className="font-semibold text-green-300 mb-2">✅ Auto Payout Complete</h4>
-                          <p className="text-green-200">PYUSD transferred to your wallet automatically</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Navigation */}
-                  <div className="flex justify-between mt-8">
-                    <button
-                      onClick={resetDemo}
-                      className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-                    >
-                      🔄 Reset Demo
-                    </button>
-                    
-                    {currentStep < 4 ? (
-                      <button
-                        onClick={nextStep}
-                        className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-all"
-                      >
-                        Next Step →
-                      </button>
-                    ) : (
-                      <Link
-                        href="/game"
-                        className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-lg font-semibold transition-all inline-block"
-                      >
-                        🚀 Play Real Game
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Panel - Demo Info */}
-              <div className="space-y-6">
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6">
-                  <h4 className="font-semibold text-white mb-4">📋 Demo Progress</h4>
-                  
-                  <div className="space-y-3">
-                    {[
-                      { step: 1, title: "AI Negotiation", icon: "🤖" },
-                      { step: 2, title: "PYUSD Staking", icon: "💰" },
-                      { step: 3, title: "Strategic Game", icon: "🎮" },
-                      { step: 4, title: "Winner Payout", icon: "🏆" }
-                    ].map((item) => (
-                      <div 
-                        key={item.step}
-                        className={`flex items-center gap-3 p-3 rounded-lg border ${
-                          currentStep >= item.step 
-                            ? 'bg-green-500/20 border-green-500/30 text-green-300' 
-                            : currentStep + 1 === item.step
-                            ? 'bg-blue-500/20 border-blue-500/30 text-blue-300'
-                            : 'bg-white/5 border-white/10 text-gray-400'
-                        }`}
-                      >
-                        <span className="text-2xl">{item.icon}</span>
-                        <span className="font-medium">{item.title}</span>
-                        {currentStep >= item.step && <span className="ml-auto text-green-400">✓</span>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6">
-                  <h4 className="font-semibold text-white mb-4">🎯 Key Features</h4>
-                  
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <span className="text-green-400">✓</span>
-                      Real PYUSD stakes (1-10 range)
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <span className="text-green-400">✓</span>
-                      AI-powered negotiation
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <span className="text-green-400">✓</span>
-                      Smart contract security
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <span className="text-green-400">✓</span>
-                      Automatic payouts
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <span className="text-green-400">✓</span>
-                      Only 0.25% platform fee
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </main>
-  )
-}
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-lg p-4">
-                  <h3 className="font-semibold mb-2">🎯 Complete Flow:</h3>
-                  <ol className="text-sm space-y-1 text-white/80">
-                    <li>1. 🔮 AI agents predict game outcomes using expertise ratings</li>
-                    <li>2. 💰 Calculate optimal stakes using Kelly Criterion + personality</li>
-                    <li>3. 🤝 Multi-round negotiation with counter-offers until agreement</li>
-                    <li>4. 💸 Stake PYUSD tokens in smart contract (Hedera network)</li>
-                    <li>5. 🎮 Play TicTacToe with locked stakes</li>
-                    <li>6. 🏆 Winner automatically receives full pot via smart contract</li>
-                  </ol>
-                </div>
-
-                <button
-                  onClick={startCompleteNegotiation}
-                  disabled={negotiationInProgress || agents.length < 2}
-                  className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600
-                           font-bold text-lg btn-hover disabled:opacity-50 disabled:cursor-not-allowed
-                           flex items-center justify-center gap-3"
-                >
-                  {negotiationInProgress ? (
-                    <>
-                      <div className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></div>
-                      AI Negotiation in Progress...
-                    </>
-                  ) : (
-                    <>
-                      🤖 Start Intelligent Stake Negotiation
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )
-
-      case 'negotiating':
-        return (
-          <div className="space-y-6">
-            <div className="glass rounded-xl p-6">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                🧠 AI Negotiation in Progress
-              </h2>
-              
-              <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg p-4 mb-4">
-                <div className="flex items-center justify-center gap-3 mb-3">
-                  <div className="animate-pulse w-3 h-3 bg-purple-500 rounded-full"></div>
-                  <span className="font-semibold">Agents calculating optimal stakes...</span>
-                  <div className="animate-pulse w-3 h-3 bg-blue-500 rounded-full"></div>
-                </div>
-                
-                <div className="text-center text-sm text-white/70">
-                  Using Kelly Criterion, personality risk profiles, and multi-round negotiation
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-
-      case 'staking':
-        return (
-          <div className="space-y-6">
-            <div className="glass rounded-xl p-6">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                💰 Stake Agreement Reached!
-              </h2>
-              
-              {gameState.stakes.amount && (
-                <div className="space-y-4">
-                  <div className="text-center">
-                    <div className="text-4xl font-bold text-green-400 mb-2">
-                      ${gameState.stakes.amount}
-                    </div>
-                    <div className="text-lg text-white/80">Agreed stake per player</div>
-                    <div className="text-sm text-white/60">
-                      Total pot: ${gameState.stakes.amount * 2}
-                    </div>
-                  </div>
-
-                  <div className="bg-green-500/20 rounded-lg p-4">
-                    <div className="text-sm font-semibold mb-2">✅ Ready for PYUSD Staking</div>
-                    <div className="text-xs text-white/70">
-                      Stakes will be locked in smart contract on Hedera network. 
-                      Winner takes the full pot automatically upon game completion.
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={executeStaking}
-                    className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-green-500 to-blue-600
-                             font-bold text-lg btn-hover flex items-center justify-center gap-3"
-                  >
-                    💸 Confirm PYUSD Stake & Start Game
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )
-
-      case 'playing':
-        return (
-          <div className="space-y-6">
-            <GameInfo
-              currentPlayer={gameState.currentPlayer}
-              player1Address={gameState.players.player1}
-              player2Address={gameState.players.player2}
-              pot={(gameState.stakes.amount! * 2).toString()}
-              gameStatus="playing"
-            />
-            
-            <div className="glass rounded-xl p-6">
-              <h3 className="text-lg font-bold mb-4 text-center">
-                🎮 TicTacToe - Stakes Locked: ${gameState.stakes.amount! * 2}
-              </h3>
-              
-              <Board
-                board={gameState.board}
-                onCellClick={makeMove}
-                currentPlayer={gameState.currentPlayer}
-                disabled={false}
-              />
-            </div>
-          </div>
-        )
-
-      case 'finished':
-        return (
-          <div className="space-y-6">
-            <div className="glass rounded-xl p-6 text-center">
-              <h2 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2">
-                🏆 Game Complete!
-              </h2>
-              
-              <div className="space-y-4">
-                <div className="text-xl text-green-400 font-bold">
-                  Player {gameState.winner} Wins!
-                </div>
-                
-                <div className="bg-green-500/20 rounded-lg p-4">
-                  <div className="text-lg font-semibold mb-2">
-                    💰 Winner receives: ${gameState.stakes.amount! * 2}
-                  </div>
-                  <div className="text-sm text-white/70">
-                    PYUSD payout automatically executed via smart contract
-                  </div>
-                </div>
-
+          {/* Game Status */}
+          <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-white/20 rounded-2xl p-6 mb-8">
+            {winner ? (
+              <div className="text-center">
+                <div className="text-5xl mb-4">🏆</div>
+                <h2 className="text-3xl font-bold text-white mb-2">
+                  {winner} Wins!
+                </h2>
                 <button
                   onClick={resetGame}
-                  className="w-full py-3 px-6 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600
-                           font-semibold btn-hover"
+                  className="mt-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-3 rounded-full font-semibold hover:scale-105 transition-transform"
                 >
-                  🔄 Start New Negotiation
+                  Play Again
                 </button>
               </div>
+            ) : (
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white mb-2">
+                  {placementPhase ? '📍 Placement Phase' : '🎮 Movement Phase'}
+                </div>
+                <div className="text-xl text-gray-300">
+                  {isPlayerTurn ? "🎯 Your turn" : "🤖 AI is thinking..."}
+                </div>
+                <div className="mt-3 text-sm text-gray-400">
+                  Player: {playerPieces}/4 pieces | AI: {aiPieces}/4 pieces
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 4x4 Game Board */}
+          <div className="bg-gradient-to-br from-gray-900 to-black border border-white/20 rounded-2xl p-8">
+            <div className="grid grid-cols-4 gap-3">
+              {board.map((cell, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleCellClick(index)}
+                  disabled={!!winner || !isPlayerTurn || isAIThinking || cell !== 0}
+                  className={`
+                    aspect-square rounded-xl text-4xl font-bold transition-all duration-200
+                    ${cell === 1 ? 'bg-blue-500 text-white' : 
+                      cell === 2 ? 'bg-pink-500 text-white' : 
+                      'bg-gray-800/50 hover:bg-gray-700/50 border-2 border-gray-700 hover:border-gray-600'}
+                    ${!winner && isPlayerTurn && !isAIThinking && cell === 0 ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed opacity-70'}
+                    flex items-center justify-center
+                  `}
+                >
+                  {cell === 1 ? 'X' : cell === 2 ? 'O' : ''}
+                </button>
+              ))}
             </div>
           </div>
-        )
 
-      default:
-        return null
-    }
-  }
+          {/* Win Conditions */}
+          <div className="mt-8 bg-white/5 border border-white/10 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">🎯 Win Conditions</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm text-gray-300">
+              <div>↔️ 4 in a row (horizontal)</div>
+              <div>↕️ 4 in a row (vertical)</div>
+              <div>↘️ 4 in a row (diagonal)</div>
+              <div>◼️ 2x2 square block</div>
+            </div>
+          </div>
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="glass border-b border-white/20">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3">
-              <span className="text-2xl font-bold">QuadraX</span>
-              <span className="text-sm text-white/60">Intelligent Staking Demo</span>
+          {/* Play Real Game CTA */}
+          <div className="mt-8 text-center">
+            <p className="text-gray-400 mb-4">Ready to play with real stakes?</p>
+            <Link
+              href="/game"
+              className="inline-block bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-3 rounded-full font-semibold hover:scale-105 transition-transform"
+            >
+              🚀 Play Real Game with PYUSD
             </Link>
-            <ConnectButton />
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Main Game Area */}
-            <div className="lg:col-span-2">
-              {renderPhaseContent()}
-            </div>
-
-            {/* Negotiation Log & AI Chat */}
-            <div className="space-y-6">
-              
-              {/* Negotiation Log */}
-              <div className="glass rounded-xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold">📋 Process Log</h3>
-                  <button
-                    onClick={() => setShowNegotiationLog(!showNegotiationLog)}
-                    className="text-sm bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg transition-all"
-                  >
-                    {showNegotiationLog ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-
-                {(showNegotiationLog || negotiationLog.length > 0) && (
-                  <div className="bg-black/30 rounded-lg p-3 max-h-60 overflow-y-auto">
-                    {negotiationLog.length > 0 ? (
-                      negotiationLog.map((log, i) => (
-                        <div key={i} className="text-sm text-white/80 py-1 border-l-2 border-blue-500/30 pl-3 mb-2">
-                          {log}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-sm text-white/50 text-center py-4">
-                        No negotiation activity yet
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Game Stats */}
-              <div className="glass rounded-xl p-6">
-                <h3 className="text-lg font-bold mb-4">📊 Game Stats</h3>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-white/70">Game ID:</span>
-                    <span className="font-mono">#{gameState.gameId}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-white/70">Phase:</span>
-                    <span className="capitalize text-blue-400">{gameState.phase}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-white/70">AI Agents:</span>
-                    <span>{agents.length} ready</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-white/70">Hedera A2A:</span>
-                    <span>{hederaAgents.length} connected</span>
-                  </div>
-                  {gameState.stakes.amount && (
-                    <div className="flex justify-between">
-                      <span className="text-white/70">Stake Amount:</span>
-                      <span className="font-semibold text-green-400">${gameState.stakes.amount}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="glass border-t border-white/20">
-        <div className="container mx-auto px-4 py-4 text-center">
-          <p className="text-sm text-white/60">
-            🚀 Built for ETHOnline 2025 | PYUSD × ASI × Hedera | Intelligent AI Staking System
-          </p>
-        </div>
-      </footer>
     </div>
   )
 }

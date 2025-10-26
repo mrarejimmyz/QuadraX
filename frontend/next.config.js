@@ -1,8 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: false, // Disable strict mode to prevent double initialization
+  reactStrictMode: false,
   swcMinify: true,
-  // Handle Chrome DevTools requests
   async rewrites() {
     return [
       {

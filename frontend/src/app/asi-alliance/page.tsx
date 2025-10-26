@@ -84,7 +84,7 @@ export default function ASIAllianceDemoPage() {
             <span className="text-4xl">🧠</span>
             <h1 className="text-3xl font-bold">ASI Alliance</h1>
           </Link>
-          <ConnectButton />
+          <ConnectButton showBalance={false} />
         </div>
       </header>
 
@@ -338,7 +338,7 @@ export default function ASIAllianceDemoPage() {
               <span className="text-2xl font-bold">QuadraX</span>
               <span className="text-sm text-white/60">ASI Alliance + Hedera Demo</span>
             </Link>
-            <ConnectButton />
+            <ConnectButton showBalance={false} />
           </div>
         </div>
       </header>
