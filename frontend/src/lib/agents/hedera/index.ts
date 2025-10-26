@@ -131,7 +131,7 @@ export class HederaAgent {
       
       // Simulate contract deployment with unique identifier
       const mockContractId = `0.0.${Date.now().toString().slice(-6)}`
-      const mockTransactionId = `0.0.${this.operatorAccountId.toString()}@${Date.now() / 1000}`
+      const mockTransactionId = `0.0.${this.operatorAccountId?.toString() || '0.0.0'}@${Date.now() / 1000}`
 
       console.log('📝 Creating escrow contract on Hedera...')
       console.log(`  Contract ID: ${mockContractId}`)

@@ -3,6 +3,9 @@
 // Platform/AI Treasury Address (holds PYUSD for AI opponent stakes)
 export const PLATFORM_TREASURY = '0x224783d70d55f9ab790fe27fcfc4629241f45371' as const
 
+// Main staking contract address (referee uses this)
+export const STAKING_CONTRACT_ADDRESS = '0x1E7A9732C25DaD9880ac9437d00a071B937c1807' as `0x${string}`
+
 export const CONTRACTS = {
   sepolia: {
     PYUSD: '0xCaC524BcA292aaade2DF8A05cC58F0a65B1B3bB9', // PYUSD on Sepolia (Official)

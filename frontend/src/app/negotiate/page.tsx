@@ -160,12 +160,12 @@ export default function NegotiatePage() {
       })
 
       // Add Hedera escrow info if available
-      if (deployment.hedera?.contractId) {
+      if ('hedera' in deployment && deployment.hedera?.contractId) {
         params.append('escrowId', deployment.hedera.contractId)
       }
 
       // Add Sepolia game ID if available
-      if (deployment.sepolia?.gameId) {
+      if ('sepolia' in deployment && deployment.sepolia?.gameId) {
         params.append('gameId', deployment.sepolia.gameId)
       }
 

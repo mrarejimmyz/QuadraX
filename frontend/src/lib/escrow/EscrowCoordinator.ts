@@ -155,6 +155,11 @@ export class EscrowCoordinator {
       }));
 
       console.log('✅ Dual-chain deployment complete!');
+      
+      if (!hederaEscrowId) {
+        throw new Error('Hedera escrow ID is required');
+      }
+      
       return {
         sepoliaGameId: gameId,
         hederaEscrowId,
@@ -295,14 +300,18 @@ export class EscrowCoordinator {
       // Step 3: Update Hedera state (only after Sepolia confirms)
       console.log('📝 Updating Hedera escrow state...');
       const hederaAgent = getHederaAgent();
-      const hederaResult = await hederaAgent.depositStake(escrowId, playerAddress, amount);
+      const hederaResult = await hederaAgent.depositStake(escrowId, playerAddress, parseFloat(amount));
       console.log('✅ Hedera state updated');
+
+      // Check if both players deposited
+      const escrowStatus = await hederaAgent.getEscrowStatus(escrowId);
+      const bothDeposited = escrowStatus?.player1Deposited && escrowStatus?.player2Deposited;
 
       console.log('✅ Dual-chain deposit complete!');
       return {
         sepoliaTxHash: stakeHash,
         hederaUpdated: true,
-        bothDeposited: hederaResult.bothDeposited,
+        bothDeposited: bothDeposited || false,
       };
 
     } catch (error) {
@@ -315,6 +324,9 @@ export class EscrowCoordinator {
    * Payout winner on both chains
    * 1. Release funds on Sepolia
    * 2. Update Hedera state
+   * 
+   * NOTE: This method requires MetaMask connection. 
+   * The AI Referee handles automatic payouts via API route instead.
    */
   async payoutWinner(
     gameId: string,
@@ -327,11 +339,15 @@ export class EscrowCoordinator {
     console.log('Winner:', winner);
 
     try {
+      // Get accounts from MetaMask
+      const [account] = await (window as any).ethereum.request({
+        method: 'eth_requestAccounts'
+      });
+      
       // Step 1: Declare winner and trigger automatic payout on Sepolia
       // NOTE: The caller signs the transaction, but the contract sends PYUSD to the winner
       console.log('📝 Declaring winner on Sepolia...');
       console.log('   Winner will receive:', winner);
-      console.log('   Transaction signed by:', this.walletClient.account?.address);
       
       // Convert gameId to BigInt
       const gameIdBigInt = BigInt(gameId);
@@ -341,7 +357,7 @@ export class EscrowCoordinator {
         abi: PYUSDStakingABI.abi || PYUSDStakingABI,
         functionName: 'declareWinner',
         args: [gameIdBigInt, winner],
-        // The signer can be anyone - the contract sends funds to 'winner' parameter
+        account,
       });
 
       console.log('✅ DeclareWinner transaction submitted:', claimHash);
@@ -447,15 +463,19 @@ export class EscrowCoordinator {
       const hederaAgent = getHederaAgent();
       const hederaEscrow = await hederaAgent.getEscrowStatus(escrowId);
 
-      // Compare states
-      if (sepoliaGame.player1Staked && !hederaEscrow.player1Deposited) {
-        issues.push('Player 1 staked on Sepolia but not tracked on Hedera');
-      }
-      if (sepoliaGame.player2Staked && !hederaEscrow.player2Deposited) {
-        issues.push('Player 2 staked on Sepolia but not tracked on Hedera');
-      }
-      if (sepoliaGame.winner && !hederaEscrow.winner) {
-        issues.push('Winner declared on Sepolia but not on Hedera');
+      // Compare states (only if Hedera escrow exists)
+      if (hederaEscrow) {
+        if (sepoliaGame.player1Staked && !hederaEscrow.player1Deposited) {
+          issues.push('Player 1 staked on Sepolia but not tracked on Hedera');
+        }
+        if (sepoliaGame.player2Staked && !hederaEscrow.player2Deposited) {
+          issues.push('Player 2 staked on Sepolia but not tracked on Hedera');
+        }
+        if (sepoliaGame.winner && !hederaEscrow.winner) {
+          issues.push('Winner declared on Sepolia but not on Hedera');
+        }
+      } else {
+        issues.push('Hedera escrow not found');
       }
 
       return {
@@ -494,7 +514,7 @@ export class EscrowCoordinator {
     // Fallback: try to use the last few digits of tx hash as a temporary ID
     console.warn('⚠️ Could not find GameCreated event in receipt');
     console.warn('Receipt logs:', JSON.stringify(receipt.logs, null, 2));
-    const fallbackId = BigInt(receipt.transactionHash.slice(-8), 16).toString();
+    const fallbackId = BigInt('0x' + receipt.transactionHash.slice(-8)).toString();
     console.warn(`Using fallback gameId: ${fallbackId}`);
     return fallbackId;
   }

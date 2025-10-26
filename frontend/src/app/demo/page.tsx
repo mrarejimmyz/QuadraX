@@ -109,7 +109,9 @@ export default function DemoPage() {
       phase: placementPhase ? 'placement' : 'movement',
       currentPlayer: 2,
       moveHistory: [],
-      possibleMoves: emptySpots
+      possibleMoves: emptySpots,
+      player1Pieces: board.filter(cell => cell === 1).length,
+      player2Pieces: board.filter(cell => cell === 2).length
     }
 
     try {

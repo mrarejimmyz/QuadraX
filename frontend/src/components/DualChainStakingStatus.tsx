@@ -109,11 +109,11 @@ export function DualChainStakingStatus({
               Hedera (Escrow)
             </h3>
             <span className={`text-xs px-2 py-1 rounded ${
-              hederaStatus?.active 
+              hederaStatus && (hederaStatus.player1Deposited || hederaStatus.player2Deposited)
                 ? 'bg-green-500/20 text-green-400' 
                 : 'bg-gray-500/20 text-gray-400'
             }`}>
-              {hederaStatus?.active ? 'Active' : 'Inactive'}
+              {hederaStatus && (hederaStatus.player1Deposited || hederaStatus.player2Deposited) ? 'Active' : 'Inactive'}
             </span>
           </div>
           
@@ -124,7 +124,7 @@ export function DualChainStakingStatus({
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Total Pot:</span>
-              <span className="font-mono">{hederaStatus?.totalPot || '0'} PYUSD</span>
+              <span className="font-mono">{hederaStatus?.totalDeposited || '0'} PYUSD</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Network:</span>
@@ -241,7 +241,7 @@ export function DualChainStakingStatus({
               🎉 Both Players Ready!
             </div>
             <div className="text-sm text-gray-400">
-              Total pot: {hederaStatus?.totalPot || (parseFloat(stakeAmount) * 2).toString()} PYUSD
+              Total pot: {hederaStatus?.totalDeposited || (parseFloat(stakeAmount) * 2).toString()} PYUSD
             </div>
           </div>
         )}
@@ -257,7 +257,7 @@ export function DualChainStakingStatus({
                 disabled={isPaying}
                 className="w-full py-2 bg-yellow-500 text-black rounded font-semibold hover:bg-yellow-400 disabled:opacity-50 transition-all"
               >
-                {isPaying ? 'Claiming...' : `Claim ${hederaStatus.totalPot} PYUSD`}
+                {isPaying ? 'Claiming...' : `Claim ${hederaStatus.totalDeposited} PYUSD`}
               </button>
             )}
           </div>

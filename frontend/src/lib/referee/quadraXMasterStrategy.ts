@@ -612,7 +612,7 @@ export class QuadraXMasterStrategy {
     })
     
     let immediateWins = 0
-    let oneMoveThreatPatterns = new Set<string>()
+    const oneMoveThreatPatterns = new Set<string>()
     
     for (const opponentMove of opponentMoves) {
       const futureBoard = [...testBoard]

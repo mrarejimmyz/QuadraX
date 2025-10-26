@@ -181,7 +181,7 @@ export class QuadraXMinimaxEngine {
     const player = position.currentPlayer
     const opponent = player === 1 ? 2 : 1
     
-    let metrics: EvaluationMetrics = {
+    const metrics: EvaluationMetrics = {
       immediateWins: 0,
       blockedThreats: 0,
       newThreats: 0,
@@ -427,7 +427,7 @@ export class QuadraXMinimaxEngine {
     const newOpponentThreats = this.countImmediateWins(newPosition.board, position.currentPlayer === 1 ? 2 : 1)
     const isBlocking = newOpponentThreats < opponentThreats
     
-    let reasoning = []
+    const reasoning = []
     if (isWinning) reasoning.push("WINNING MOVE")
     if (isBlocking) reasoning.push(`BLOCKS ${opponentThreats - newOpponentThreats} THREATS`)
     if (evaluation.centerControl > 0) reasoning.push(`CENTER CONTROL +${evaluation.centerControl}`)

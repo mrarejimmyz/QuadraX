@@ -77,7 +77,7 @@ export class SepoliaContractManager {
    * Check if PYUSDStaking contract is deployed
    */
   isContractDeployed(): boolean {
-    return this.stakingAddress !== null && this.stakingAddress !== ''
+    return this.stakingAddress !== null
   }
 
   /**
